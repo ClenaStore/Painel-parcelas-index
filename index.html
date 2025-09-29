@@ -3,58 +3,63 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Painel • Listar Parcelas (F360)</title>
+  <title>Painel • Conferência de Parcelas (F360)</title>
   <style>
-    :root{ --bg:#f4f6f8; --card:#fff; --ink:#0f1724; --muted:#6b7280; --accent:#2563eb; --radius:10px }
+    :root{
+      --bg:#f4f6f8; --card:#fff; --ink:#0f1724; --muted:#6b7280;
+      --accent:#2563eb; --radius:12px; --danger:#dc2626; --warn:#f59e0b; --ok:#16a34a;
+    }
     *{box-sizing:border-box}
-    body{margin:0;font-family:Inter,system-ui,Arial;background:var(--bg);color:var(--ink);padding:18px}
-    .card{background:var(--card);border-radius:var(--radius);box-shadow:0 6px 18px rgba(9,20,43,0.06);padding:16px;margin:8px;width:calc(100% - 16px);max-width:none}
-    th{background:#fafcff;position:sticky;top:0;z-index:2}
-    header{display:flex;gap:12px;align-items:center}
-    h1{margin:0;font-size:18px}
-    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-    input,select,button{padding:8px 10px;border-radius:8px;border:1px solid #e6edf3}
-    button{background:var(--accent);color:#fff;border:none;cursor:pointer}
-    table{width:100%;border-collapse:collapse;margin-top:12px;overflow-x:auto;display:block}
-    th,td{padding:8px;border-bottom:1px solid #f1f5f9;text-align:left;font-size:14px;white-space:nowrap}
-    .meta{display:flex;gap:10px;align-items:center;margin-left:auto}
-    .footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px}
+    body{margin:0;font-family:Inter,system-ui,Arial;background:var(--bg);color:var(--ink);}
+    header{display:flex;align-items:center;gap:12px;padding:16px;background:#fff;
+      border-bottom:1px solid #e5e7eb;position:sticky;top:0;z-index:5}
+    header img{height:40px}
+    h1{margin:0;font-size:20px}
+    .card{background:var(--card);border-radius:var(--radius);box-shadow:0 6px 18px rgba(9,20,43,.06);
+      padding:16px;margin:16px}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    input,select,button{padding:8px 10px;border-radius:8px;border:1px solid #e6edf3;font-size:14px}
+    button{cursor:pointer}
+    .btn{background:var(--accent);color:#fff;border:none}
+    .btn-warn{background:var(--warn);color:#fff}
+    .btn-danger{background:var(--danger);color:#fff}
+    table{width:100%;border-collapse:collapse}
+    th{background:#fafcff;position:sticky;top:0;z-index:2;padding:8px;font-size:14px;text-align:left}
+    td{padding:8px;border-bottom:1px solid #f1f5f9;font-size:13px;white-space:nowrap}
+    tr.novo{background:#d1fae5}       /* verde */
+    tr.divergente{background:#fff3cd} /* laranja */
     .small{font-size:13px;color:var(--muted)}
-    @media (max-width:760px){table{font-size:12px}.controls{flex-direction:column;align-items:stretch}}
+    .meta{margin-left:auto}
+    footer{padding:12px 16px;font-size:13px;color:var(--muted);display:flex;justify-content:space-between}
+    @media(max-width:760px){table{font-size:12px}.controls{flex-direction:column;align-items:stretch}}
   </style>
 </head>
 <body>
+  <header>
+    <img src="https://dummyimage.com/200x80/2563eb/ffffff&text=LOGO" alt="Logo">
+    <div>
+      <h1>Painel • Conferência de Parcelas (F360)</h1>
+      <div class="small">Integração F360 + Google Sheets</div>
+    </div>
+    <div class="meta small">Status: <span id="status">inicializando...</span></div>
+  </header>
+
   <div class="card">
-    <header>
-      <div>
-        <h1>Painel • Listar Parcelas (F360)</h1>
-        <div class="small">Conectado ao F360 via API segura (Vercel).</div>
-      </div>
-      <div class="meta small">Status: <span id="status">inicializando...</span></div>
-    </header>
-
     <div class="controls">
-      <select id="empresaSelect">
-        <option value="">-- Todas as empresas --</option>
-      </select>
-
+      <select id="empresaSelect"><option value="">-- Todas as empresas --</option></select>
       <input type="date" id="inicio" />
       <input type="date" id="fim" />
-
-      <select id="tipoDatas">
-        <option value="Emissão">Emissão</option>
-        <option value="Vencimento">Vencimento</option>
-      </select>
-
+      <select id="tipoDatas"><option>Emissão</option><option>Vencimento</option></select>
       <select id="statusSelect">
         <option value="">-- Todos os status --</option>
         <option value="Aberto">Aberto</option>
         <option value="Pago">Pago</option>
         <option value="Cancelado">Cancelado</option>
       </select>
-
-      <button id="btnLoad">Carregar parcelas</button>
-      <button id="btnConferido">Conferido</button>
+      <button class="btn" id="btnLoad">Carregar</button>
+      <button class="btn" id="btnConferido">Conferir</button>
+      <button class="btn-warn" id="btnReconferir">Reconferir</button>
+      <button class="btn-danger" id="btnExcluir">Excluir</button>
     </div>
 
     <div id="tableWrap">
@@ -80,11 +85,11 @@
         <tbody></tbody>
       </table>
     </div>
-
-    <div class="footer">
-      <div class="small">Última atualização: <span id="lastUpdate">—</span></div>
-    </div>
   </div>
+
+  <footer>
+    <div>Última atualização: <span id="lastUpdate">—</span></div>
+  </footer>
 
   <script>
     const statusEl = document.getElementById('status')
@@ -92,138 +97,129 @@
     const empresaSelect = document.getElementById('empresaSelect')
     const statusSelect = document.getElementById('statusSelect')
 
+    const ENDPOINT_SHEET = "https://script.google.com/macros/s/AKfycbwhaDgEsqQezQieSOdsbaW19jv8GTyhZacp5rXdJxQTh-sMTIXIakdD874TY_9iv7w4ZQ/exec" // trocar pela URL publicada
+
+    let planilhaCache = []
+
     function setStatus(t){ statusEl.textContent = t }
 
+    async function carregarPlanilha(){
+      try{
+        const r = await fetch(ENDPOINT_SHEET)
+        const j = await r.json()
+        planilhaCache = j.data || []
+      }catch(e){
+        console.error("Erro planilha", e)
+        planilhaCache = []
+      }
+    }
+
+    function verificarDivergencia(it){
+      const plan = planilhaCache.find(p => p.ID == it.ParcelaId)
+      if (!plan) return { tipo:"novo" }
+      let diffs=[]
+      if (Number(plan.Valor) !== Number(it.ValorBruto)) diffs.push("valor")
+      if (plan.Vencimento !== it.Vencimento) diffs.push("vencimento")
+      if (plan.Status !== it.Status) diffs.push("status")
+      if (plan.Conta !== it.Conta) diffs.push("conta")
+      if (plan["Meio Pagamento"] !== it.MeioDePagamento) diffs.push("meio")
+      return diffs.length>0 ? { tipo:"divergente", campos:diffs } : { tipo:"ok" }
+    }
+
     async function carregarParcelas(){
+      await carregarPlanilha()
+      setStatus("carregando...")
       const inicio = document.getElementById('inicio').value
       const fim = document.getElementById('fim').value
       const tipoDatas = document.getElementById('tipoDatas').value
       const empresa = empresaSelect.value
       const statusFiltro = statusSelect.value
-
-      const params = new URLSearchParams({
-        pagina: 1,
-        tipo: 'Despesa',
-        inicio,
-        fim,
-        tipoDatas
-      })
-      if (empresa) params.append('empresa', empresa)
-      if (statusFiltro) params.append('status', statusFiltro)
-
-      setStatus('carregando...')
+      const params = new URLSearchParams({pagina:1,tipo:"Despesa",inicio,fim,tipoDatas})
+      if(empresa) params.append("empresa",empresa)
+      if(statusFiltro) params.append("status",statusFiltro)
       try{
-        const r = await fetch('/api/parcelas?' + params.toString())
-        if(!r.ok){
-          setStatus('erro: '+r.status)
-          return
-        }
+        const r = await fetch('/api/parcelas?'+params.toString())
         const data = await r.json()
         renderTable(data)
         popularEmpresas(data)
-        setStatus('ok')
+        setStatus("ok")
         lastUpdateEl.textContent = new Date().toLocaleString()
-      }catch(err){
-        setStatus('erro fetch')
-        console.error(err)
+      }catch(e){
+        console.error(e)
+        setStatus("erro fetch")
       }
     }
 
     function renderTable(apiResp){
-      const tbody = document.querySelector('#parcelasTable tbody')
-      tbody.innerHTML = ''
-
-      const items = (apiResp.Result && apiResp.Result.Parcelas) || []
-      if(!Array.isArray(items) || items.length===0){
-        tbody.innerHTML = '<tr><td colspan="14">Nenhuma parcela encontrada</td></tr>'
-        return
-      }
-
+      const tbody = document.querySelector("#parcelasTable tbody")
+      tbody.innerHTML=""
+      const items=(apiResp.Result && apiResp.Result.Parcelas)||[]
+      if(!items.length){tbody.innerHTML="<tr><td colspan=14>Nenhuma parcela</td></tr>";return}
       for(const it of items){
-        const tr = document.createElement('tr')
-        tr.innerHTML = `
+        const tr=document.createElement("tr")
+        const check=verificarDivergencia(it)
+        if(check.tipo==="novo") tr.classList.add("novo")
+        if(check.tipo==="divergente") tr.classList.add("divergente")
+        tr.innerHTML=`
           <td><input type="checkbox" class="chkParcela" data-json='${JSON.stringify({
-            id: it.ParcelaId || "",
-            empresa: it.DadosDoTitulo?.Empresa?.Nome || "",
-            fornecedor: it.DadosDoTitulo?.ClienteFornecedor?.Nome || "",
-            emissao: it.DadosDoTitulo?.Emissao || "",
-            vencimento: it.Vencimento || "",
-            valor: it.ValorBruto || "",
-            status: it.Status || "",
-            conta: it.Conta || "",
-            meio: it.MeioDePagamento || "",
-            tipoDoc: it.DadosDoTitulo?.TipoDeDocumento || "",
-            centroCusto: it.Rateio?.[0]?.CentroDeCusto || "",
-            planoContas: it.Rateio?.[0]?.PlanoDeContas || "",
-            observacao: it.DadosDoTitulo?.Observacao || ""
+            id: it.ParcelaId||"", empresa: it.DadosDoTitulo?.Empresa?.Nome||"",
+            fornecedor: it.DadosDoTitulo?.ClienteFornecedor?.Nome||"",
+            emissao: it.DadosDoTitulo?.Emissao||"", vencimento: it.Vencimento||"",
+            valor: it.ValorBruto||"", status: it.Status||"", conta: it.Conta||"",
+            meio: it.MeioDePagamento||"", tipoDoc: it.DadosDoTitulo?.TipoDeDocumento||"",
+            centroCusto: it.Rateio?.[0]?.CentroDeCusto||"", planoContas: it.Rateio?.[0]?.PlanoDeContas||"",
+            observacao: it.DadosDoTitulo?.Observacao||""
           })}'></td>
-          <td>${it.ParcelaId || ''}</td>
-          <td>${it.DadosDoTitulo?.Empresa?.Nome || ''}</td>
-          <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome || ''}</td>
-          <td>${it.DadosDoTitulo?.Emissao || ''}</td>
-          <td>${it.Vencimento || ''}</td>
-          <td>${it.ValorBruto?.toLocaleString?.('pt-BR',{style:'currency',currency:'BRL'}) || it.ValorBruto || ''}</td>
-          <td>${it.Status || ''}</td>
-          <td>${it.Conta || ''}</td>
-          <td>${it.MeioDePagamento || ''}</td>
-          <td>${it.DadosDoTitulo?.TipoDeDocumento || ''}</td>
-          <td>${it.Rateio?.[0]?.CentroDeCusto || ''}</td>
-          <td>${it.Rateio?.[0]?.PlanoDeContas || ''}</td>
-          <td>${it.DadosDoTitulo?.Observacao || ''}</td>
-        `
+          <td>${it.ParcelaId||""}</td>
+          <td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td>
+          <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</td>
+          <td>${it.DadosDoTitulo?.Emissao||""}</td>
+          <td>${it.Vencimento||""}</td>
+          <td>${it.ValorBruto?.toLocaleString?.("pt-BR",{style:"currency",currency:"BRL"})||it.ValorBruto||""}</td>
+          <td>${it.Status||""}</td>
+          <td>${it.Conta||""}</td>
+          <td>${it.MeioDePagamento||""}</td>
+          <td>${it.DadosDoTitulo?.TipoDeDocumento||""}</td>
+          <td>${it.Rateio?.[0]?.CentroDeCusto||""}</td>
+          <td>${it.Rateio?.[0]?.PlanoDeContas||""}</td>
+          <td>${it.DadosDoTitulo?.Observacao||""}</td>`
         tbody.appendChild(tr)
       }
     }
 
     function popularEmpresas(apiResp){
-      const items = (apiResp.Result && apiResp.Result.Parcelas) || []
-      if(!Array.isArray(items)) return
-
-      const empresas = [...new Set(
-        items.map(it => it.DadosDoTitulo?.Empresa?.Nome).filter(Boolean)
-      )]
-
-      empresaSelect.innerHTML = '<option value="">-- Todas as empresas --</option>'
-      empresas.forEach(e =>{
-        const opt = document.createElement('option')
-        opt.value = e
-        opt.textContent = e
+      const items=(apiResp.Result && apiResp.Result.Parcelas)||[]
+      const empresas=[...new Set(items.map(it=>it.DadosDoTitulo?.Empresa?.Nome).filter(Boolean))]
+      empresaSelect.innerHTML='<option value="">-- Todas as empresas --</option>'
+      empresas.forEach(e=>{
+        const opt=document.createElement("option");opt.value=e;opt.textContent=e
         empresaSelect.appendChild(opt)
       })
     }
 
-    document.getElementById('btnLoad').addEventListener('click', ()=>carregarParcelas())
-
-    document.getElementById('btnConferido').addEventListener('click', async ()=>{
-      const selecionados = [...document.querySelectorAll('.chkParcela:checked')]
-        .map(chk => JSON.parse(chk.dataset.json))
-
-      if(selecionados.length===0){
-        alert('Selecione ao menos uma parcela!')
-        return
-      }
-
+    async function enviarParaPlanilha(tipo){
+      const selecionados=[...document.querySelectorAll(".chkParcela:checked")].map(chk=>JSON.parse(chk.dataset.json))
+      if(!selecionados.length){alert("Selecione ao menos uma parcela!");return}
+      let body={acao:tipo, registros:selecionados}
       try{
-        const r = await fetch("https://script.google.com/macros/s/AKfycbxKb2VvQxJ41ZRvb9RWiTeXOTEvieFApgMgN9MnjcYC9VnAUXkT-ioRHNHDyWW29_KV-Q/exec", {
-          method: "POST",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify(selecionados)
+        const r=await fetch(ENDPOINT_SHEET,{
+          method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
+          body:JSON.stringify(body)
         })
-        const resp = await r.json()
-        if(resp.success){
-          alert("Enviado com sucesso! " + resp.count + " registros")
-        }else{
-          alert("Erro: " + resp.error)
-        }
-      }catch(err){
-        console.error(err)
-        alert('Erro ao enviar para planilha')
-      }
-    })
+        const resp=await r.json()
+        alert((resp.success?"OK: ":"Erro: ")+JSON.stringify(resp))
+        carregarParcelas()
+      }catch(e){alert("Erro GAS");console.error(e)}
+    }
 
-    const hoje = new Date().toISOString().slice(0,10)
-    document.getElementById('inicio').value = hoje
-    document.getElementById('fim').value = hoje
+    document.getElementById("btnLoad").addEventListener("click",carregarParcelas)
+    document.getElementById("btnConferido").addEventListener("click",()=>enviarParaPlanilha("conferir"))
+    document.getElementById("btnReconferir").addEventListener("click",()=>enviarParaPlanilha("reconferir"))
+    document.getElementById("btnExcluir").addEventListener("click",()=>enviarParaPlanilha("excluir"))
+
+    const hoje=new Date().toISOString().slice(0,10)
+    document.getElementById("inicio").value=hoje
+    document.getElementById("fim").value=hoje
   </script>
 </body>
 </html>
