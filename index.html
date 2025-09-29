@@ -104,38 +104,52 @@
       }
     }
 
-    function renderTable(apiResp){
-      const tbody = document.querySelector('#parcelasTable tbody')
-      tbody.innerHTML = ''
-      const items = apiResp.items || apiResp.data || apiResp || []
-      if(!Array.isArray(items)) return
-      if(items.length===0){ tbody.innerHTML = '<tr><td colspan="6">Nenhuma parcela encontrada</td></tr>'; return }
+function renderTable(apiResp){
+  const tbody = document.querySelector('#parcelasTable tbody')
+  tbody.innerHTML = ''
 
-      for(const it of items){
-        const tr = document.createElement('tr')
-        const id = it.id || it.tituloId || it.parcelaId || ''
-        const empresa = it.empresa || it.filial || it.nomeEmpresa || ''
-        const fornecedor = it.fornecedor || it.historico || it.nome || ''
-        const venc = it.vencimento || it.dataVencimento || it.emissao || ''
-        const valor = (it.valor || it.valorParcela || it.valorOriginal || '')
-        const status = it.status || it.situacao || ''
-        tr.innerHTML = `<td>${id}</td><td>${empresa}</td><td>${fornecedor}</td><td>${venc}</td><td>${valor}</td><td>${status}</td>`
-        tbody.appendChild(tr)
-      }
-    }
+  const items = (apiResp.Result && apiResp.Result.Parcelas) || []
+  if(!Array.isArray(items) || items.length===0){
+    tbody.innerHTML = '<tr><td colspan="6">Nenhuma parcela encontrada</td></tr>'
+    return
+  }
 
-    function popularEmpresas(apiResp){
-      const items = apiResp.items || apiResp.data || apiResp || []
-      if(!Array.isArray(items)) return
-      const empresas = [...new Set(items.map(it => it.empresa || it.filial || it.nomeEmpresa).filter(Boolean))]
-      empresaSelect.innerHTML = '<option value="">-- Todas as empresas --</option>'
-      empresas.forEach(e =>{
-        const opt = document.createElement('option')
-        opt.value = e
-        opt.textContent = e
-        empresaSelect.appendChild(opt)
-      })
-    }
+  for(const it of items){
+    const id = it.ParcelaId || ''
+    const empresa = (it.DadosDoTitulo?.Empresa?.Nome) || ''
+    const fornecedor = (it.DadosDoTitulo?.ClienteFornecedor?.Nome) || ''
+    const venc = it.Vencimento || it.DadosDoTitulo?.Emissao || ''
+    const valor = it.ValorBruto || it.DadosDoTitulo?.Valor || ''
+    const status = it.Status || ''
+    const tr = document.createElement('tr')
+    tr.innerHTML = `
+      <td>${id}</td>
+      <td>${empresa}</td>
+      <td>${fornecedor}</td>
+      <td>${venc}</td>
+      <td>${valor}</td>
+      <td>${status}</td>`
+    tbody.appendChild(tr)
+  }
+}
+
+function popularEmpresas(apiResp){
+  const items = (apiResp.Result && apiResp.Result.Parcelas) || []
+  if(!Array.isArray(items)) return
+
+  const empresas = [...new Set(
+    items.map(it => it.DadosDoTitulo?.Empresa?.Nome).filter(Boolean)
+  )]
+
+  empresaSelect.innerHTML = '<option value="">-- Todas as empresas --</option>'
+  empresas.forEach(e =>{
+    const opt = document.createElement('option')
+    opt.value = e
+    opt.textContent = e
+    empresaSelect.appendChild(opt)
+  })
+}
+
 
     document.getElementById('btnLoad').addEventListener('click', ()=>carregarParcelas())
 
