@@ -105,30 +105,52 @@
     }
 
 function renderTable(apiResp){
+  const tbody = // Cabeçalho da tabela
+document.querySelector('#parcelasTable thead').innerHTML = `
+  <tr>
+    <th>ID</th>
+    <th>Empresa</th>
+    <th>Fornecedor</th>
+    <th>Emissão</th>
+    <th>Vencimento</th>
+    <th>Valor</th>
+    <th>Status</th>
+    <th>Conta</th>
+    <th>Meio Pagamento</th>
+    <th>Tipo Doc</th>
+    <th>Centro de Custo</th>
+    <th>Plano de Contas</th>
+    <th>Observação</th>
+  </tr>
+`
+
+function renderTable(apiResp){
   const tbody = document.querySelector('#parcelasTable tbody')
   tbody.innerHTML = ''
 
   const items = (apiResp.Result && apiResp.Result.Parcelas) || []
   if(!Array.isArray(items) || items.length===0){
-    tbody.innerHTML = '<tr><td colspan="6">Nenhuma parcela encontrada</td></tr>'
+    tbody.innerHTML = '<tr><td colspan="13">Nenhuma parcela encontrada</td></tr>'
     return
   }
 
   for(const it of items){
-    const id = it.ParcelaId || ''
-    const empresa = (it.DadosDoTitulo?.Empresa?.Nome) || ''
-    const fornecedor = (it.DadosDoTitulo?.ClienteFornecedor?.Nome) || ''
-    const venc = it.Vencimento || it.DadosDoTitulo?.Emissao || ''
-    const valor = it.ValorBruto || it.DadosDoTitulo?.Valor || ''
-    const status = it.Status || ''
     const tr = document.createElement('tr')
     tr.innerHTML = `
-      <td>${id}</td>
-      <td>${empresa}</td>
-      <td>${fornecedor}</td>
-      <td>${venc}</td>
-      <td>${valor}</td>
-      <td>${status}</td>`
+      <td>${it.ParcelaId || ''}</td>
+      <td>${it.DadosDoTitulo?.Empresa?.Nome || ''}</td>
+      <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome || ''}</td>
+      <td>${it.DadosDoTitulo?.Emissao || ''}</td>
+      <td>${it.Vencimento || ''}</td>
+      <td>${it.ValorBruto || ''}</td>
+      <td>${it.Status || ''}</td>
+      <td>${it.Conta || ''}</td>
+      <td>${it.MeioDePagamento || ''}</td>
+      <td>${it.DadosDoTitulo?.TipoDeDocumento || ''}</td>
+      <td>${it.Rateio?.[0]?.CentroDeCusto || ''}</td>
+      <td>${it.Rateio?.[0]?.PlanoDeContas || ''}</td>
+      <td>${it.DadosDoTitulo?.Observacao || ''}</td>
+    `
     tbody.appendChild(tr)
   }
 }
