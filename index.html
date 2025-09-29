@@ -8,7 +8,7 @@
     :root{ --bg:#f4f6f8; --card:#fff; --ink:#0f1724; --muted:#6b7280; --accent:#2563eb; --radius:10px }
     *{box-sizing:border-box}
     body{margin:0;font-family:Inter,system-ui,Arial;background:var(--bg);color:var(--ink);padding:18px}
-    .card{background:var(--card);border-radius:var(--radius);box-shadow:0 6px 18px rgba(9,20,43,0.06);padding:16px;margin:8px;width:calc(100% - 16px)}
+    .card{background:var(--card);border-radius:var(--radius);box-shadow:0 6px 18px rgba(9,20,43,0.06);padding:16px;margin:8px;width:calc(100% - 16px);max-width:none}
     th{background:#fafcff;position:sticky;top:0;z-index:2}
     header{display:flex;gap:12px;align-items:center}
     h1{margin:0;font-size:18px}
@@ -17,11 +17,9 @@
     button{background:var(--accent);color:#fff;border:none;cursor:pointer}
     table{width:100%;border-collapse:collapse;margin-top:12px;overflow-x:auto;display:block}
     th,td{padding:8px;border-bottom:1px solid #f1f5f9;text-align:left;font-size:14px;white-space:nowrap}
-    .footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:10px}
+    .meta{display:flex;gap:10px;align-items:center;margin-left:auto}
+    .footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px}
     .small{font-size:13px;color:var(--muted)}
-    .flag{color:green;font-weight:bold}
-    .progress{height:8px;background:#e5e7eb;border-radius:6px;flex:1;overflow:hidden}
-    .progress-bar{height:100%;background:var(--accent);width:0%}
     @media (max-width:760px){table{font-size:12px}.controls{flex-direction:column;align-items:stretch}}
   </style>
 </head>
@@ -32,30 +30,31 @@
         <h1>Painel • Listar Parcelas (F360)</h1>
         <div class="small">Conectado ao F360 via API segura (Vercel).</div>
       </div>
-      <div class="small" id="status">inicializando...</div>
+      <div class="meta small">Status: <span id="status">inicializando...</span></div>
     </header>
 
     <div class="controls">
       <select id="empresaSelect">
         <option value="">-- Todas as empresas --</option>
       </select>
+
       <input type="date" id="inicio" />
       <input type="date" id="fim" />
+
       <select id="tipoDatas">
         <option value="Emissão">Emissão</option>
         <option value="Vencimento">Vencimento</option>
       </select>
+
       <select id="statusSelect">
         <option value="">-- Todos os status --</option>
         <option value="Aberto">Aberto</option>
         <option value="Pago">Pago</option>
         <option value="Cancelado">Cancelado</option>
       </select>
-      <select id="meioSelect">
-        <option value="">-- Todos meios --</option>
-      </select>
-      <input type="text" id="pesquisa" placeholder="🔍 Nome ou Valor" />
-      <button id="btnLoad">Carregar</button>
+
+      <button id="btnLoad">Carregar parcelas</button>
+      <button id="btnConferido">Conferido</button>
     </div>
 
     <div id="tableWrap">
@@ -84,135 +83,147 @@
 
     <div class="footer">
       <div class="small">Última atualização: <span id="lastUpdate">—</span></div>
-      <div class="small">Conferidos: <span id="percConf">0%</span></div>
-      <div class="progress"><div id="progressBar" class="progress-bar"></div></div>
     </div>
   </div>
 
-<script>
-const statusEl = document.getElementById('status')
-const lastUpdateEl = document.getElementById('lastUpdate')
-const empresaSelect = document.getElementById('empresaSelect')
-const statusSelect = document.getElementById('statusSelect')
-const meioSelect = document.getElementById('meioSelect')
-const pesquisaInput = document.getElementById('pesquisa')
+  <script>
+    const statusEl = document.getElementById('status')
+    const lastUpdateEl = document.getElementById('lastUpdate')
+    const empresaSelect = document.getElementById('empresaSelect')
+    const statusSelect = document.getElementById('statusSelect')
 
-function setStatus(t){ statusEl.textContent = t }
+    function setStatus(t){ statusEl.textContent = t }
 
-// storage conferência
-function getConf(){ return JSON.parse(localStorage.getItem('conferidos')||'{}') }
-function saveConf(obj){ localStorage.setItem('conferidos', JSON.stringify(obj)) }
+    async function carregarParcelas(){
+      const inicio = document.getElementById('inicio').value
+      const fim = document.getElementById('fim').value
+      const tipoDatas = document.getElementById('tipoDatas').value
+      const empresa = empresaSelect.value
+      const statusFiltro = statusSelect.value
 
-async function carregarParcelas(){
-  const inicio = document.getElementById('inicio').value
-  const fim = document.getElementById('fim').value
-  const tipoDatas = document.getElementById('tipoDatas').value
-  const empresa = empresaSelect.value
-  const statusFiltro = statusSelect.value
-  const meioFiltro = meioSelect.value
-  const pesquisa = pesquisaInput.value.toLowerCase()
+      const params = new URLSearchParams({
+        pagina: 1,
+        tipo: 'Despesa',
+        inicio,
+        fim,
+        tipoDatas
+      })
+      if (empresa) params.append('empresa', empresa)
+      if (statusFiltro) params.append('status', statusFiltro)
 
-  const params = new URLSearchParams({pagina:1,tipo:'Despesa',inicio,fim,tipoDatas})
-  if(empresa) params.append('empresa',empresa)
-  if(statusFiltro) params.append('status',statusFiltro)
+      setStatus('carregando...')
+      try{
+        const r = await fetch('/api/parcelas?' + params.toString())
+        if(!r.ok){
+          setStatus('erro: '+r.status)
+          return
+        }
+        const data = await r.json()
+        renderTable(data)
+        popularEmpresas(data)
+        setStatus('ok')
+        lastUpdateEl.textContent = new Date().toLocaleString()
+      }catch(err){
+        setStatus('erro fetch')
+        console.error(err)
+      }
+    }
 
-  setStatus('carregando...')
-  try{
-    const r = await fetch('/api/parcelas?'+params.toString())
-    if(!r.ok){ setStatus('erro: '+r.status); return }
-    const data = await r.json()
-    renderTable(data, meioFiltro, pesquisa)
-    popularEmpresas(data)
-    popularMeios(data)
-    setStatus('ok')
-    lastUpdateEl.textContent = new Date().toLocaleString()
-  }catch(err){ setStatus('erro fetch'); console.error(err) }
-}
+    function renderTable(apiResp){
+      const tbody = document.querySelector('#parcelasTable tbody')
+      tbody.innerHTML = ''
 
-function renderTable(apiResp, meioFiltro, pesquisa){
-  const tbody = document.querySelector('#parcelasTable tbody')
-  tbody.innerHTML = ''
-  const items = (apiResp.Result && apiResp.Result.Parcelas) || []
-  if(!Array.isArray(items) || items.length===0){
-    tbody.innerHTML = '<tr><td colspan="14">Nenhuma parcela encontrada</td></tr>'
-    return
-  }
+      const items = (apiResp.Result && apiResp.Result.Parcelas) || []
+      if(!Array.isArray(items) || items.length===0){
+        tbody.innerHTML = '<tr><td colspan="14">Nenhuma parcela encontrada</td></tr>'
+        return
+      }
 
-  const conf = getConf()
-  let total=0, conferidos=0
+      for(const it of items){
+        const tr = document.createElement('tr')
+        tr.innerHTML = `
+          <td><input type="checkbox" class="chkParcela" data-json='${JSON.stringify({
+            id: it.ParcelaId || "",
+            empresa: it.DadosDoTitulo?.Empresa?.Nome || "",
+            fornecedor: it.DadosDoTitulo?.ClienteFornecedor?.Nome || "",
+            emissao: it.DadosDoTitulo?.Emissao || "",
+            vencimento: it.Vencimento || "",
+            valor: it.ValorBruto || "",
+            status: it.Status || "",
+            conta: it.Conta || "",
+            meio: it.MeioDePagamento || "",
+            tipoDoc: it.DadosDoTitulo?.TipoDeDocumento || "",
+            centroCusto: it.Rateio?.[0]?.CentroDeCusto || "",
+            planoContas: it.Rateio?.[0]?.PlanoDeContas || "",
+            observacao: it.DadosDoTitulo?.Observacao || ""
+          })}'></td>
+          <td>${it.ParcelaId || ''}</td>
+          <td>${it.DadosDoTitulo?.Empresa?.Nome || ''}</td>
+          <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome || ''}</td>
+          <td>${it.DadosDoTitulo?.Emissao || ''}</td>
+          <td>${it.Vencimento || ''}</td>
+          <td>${it.ValorBruto?.toLocaleString?.('pt-BR',{style:'currency',currency:'BRL'}) || it.ValorBruto || ''}</td>
+          <td>${it.Status || ''}</td>
+          <td>${it.Conta || ''}</td>
+          <td>${it.MeioDePagamento || ''}</td>
+          <td>${it.DadosDoTitulo?.TipoDeDocumento || ''}</td>
+          <td>${it.Rateio?.[0]?.CentroDeCusto || ''}</td>
+          <td>${it.Rateio?.[0]?.PlanoDeContas || ''}</td>
+          <td>${it.DadosDoTitulo?.Observacao || ''}</td>
+        `
+        tbody.appendChild(tr)
+      }
+    }
 
-  for(const it of items){
-    total++
-    const id = it.ParcelaId || ''
-    const fornecedor = it.DadosDoTitulo?.ClienteFornecedor?.Nome || ''
-    const valor = it.ValorBruto || ''
-    const meio = it.MeioDePagamento || ''
+    function popularEmpresas(apiResp){
+      const items = (apiResp.Result && apiResp.Result.Parcelas) || []
+      if(!Array.isArray(items)) return
 
-    // filtros extras
-    if(meioFiltro && meio!==meioFiltro) continue
-    if(pesquisa && !(fornecedor.toLowerCase().includes(pesquisa) || String(valor).includes(pesquisa))) continue
+      const empresas = [...new Set(
+        items.map(it => it.DadosDoTitulo?.Empresa?.Nome).filter(Boolean)
+      )]
 
-    const conferido = conf[id]
-    if(conferido) conferidos++
+      empresaSelect.innerHTML = '<option value="">-- Todas as empresas --</option>'
+      empresas.forEach(e =>{
+        const opt = document.createElement('option')
+        opt.value = e
+        opt.textContent = e
+        empresaSelect.appendChild(opt)
+      })
+    }
 
-    const tr = document.createElement('tr')
-    tr.innerHTML = `
-      <td>${conferido ? "✅" : `<input type="checkbox" data-id="${id}">`}</td>
-      <td>${id}</td>
-      <td>${it.DadosDoTitulo?.Empresa?.Nome || ''}</td>
-      <td>${fornecedor}</td>
-      <td>${it.DadosDoTitulo?.Emissao || ''}</td>
-      <td>${it.Vencimento || ''}</td>
-      <td>${valor.toLocaleString?.('pt-BR',{style:'currency',currency:'BRL'}) || valor}</td>
-      <td>${it.Status || ''}</td>
-      <td>${it.Conta || ''}</td>
-      <td>${meio}</td>
-      <td>${it.DadosDoTitulo?.TipoDeDocumento || ''}</td>
-      <td>${it.Rateio?.[0]?.CentroDeCusto || ''}</td>
-      <td>${it.Rateio?.[0]?.PlanoDeContas || ''}</td>
-      <td>${it.DadosDoTitulo?.Observacao || ''}</td>
-    `
-    tbody.appendChild(tr)
-  }
-  atualizarProgresso(conferidos,total)
-}
+    document.getElementById('btnLoad').addEventListener('click', ()=>carregarParcelas())
 
-function atualizarProgresso(conf,total){
-  const perc = total? Math.round(conf/total*100):0
-  document.getElementById('percConf').textContent = perc+"%"
-  document.getElementById('progressBar').style.width = perc+"%"
-}
+    document.getElementById('btnConferido').addEventListener('click', async ()=>{
+      const selecionados = [...document.querySelectorAll('.chkParcela:checked')]
+        .map(chk => JSON.parse(chk.dataset.json))
 
-function popularEmpresas(apiResp){
-  const items = (apiResp.Result && apiResp.Result.Parcelas) || []
-  const empresas = [...new Set(items.map(it=>it.DadosDoTitulo?.Empresa?.Nome).filter(Boolean))]
-  empresaSelect.innerHTML = '<option value="">-- Todas as empresas --</option>'
-  empresas.forEach(e=>{
-    const opt = document.createElement('option'); opt.value=e; opt.textContent=e; empresaSelect.appendChild(opt)
-  })
-}
+      if(selecionados.length===0){
+        alert('Selecione ao menos uma parcela!')
+        return
+      }
 
-function popularMeios(apiResp){
-  const items = (apiResp.Result && apiResp.Result.Parcelas) || []
-  const meios = [...new Set(items.map(it=>it.MeioDePagamento).filter(Boolean))]
-  meioSelect.innerHTML = '<option value="">-- Todos meios --</option>'
-  meios.forEach(m=>{
-    const opt = document.createElement('option'); opt.value=m; opt.textContent=m; meioSelect.appendChild(opt)
-  })
-}
+      try{
+        const r = await fetch("https://script.google.com/macros/s/AKfycbzdNYi50ZwjUk1Cygw-N4QHWAWKPNr_Ouzx1_yjdWBOeSgoTE-NUwedcgRGnkqiF62z-w/exec", {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(selecionados)
+        })
+        const resp = await r.json()
+        if(resp.success){
+          alert("Enviado com sucesso! " + resp.count + " registros")
+        }else{
+          alert("Erro: " + resp.error)
+        }
+      }catch(err){
+        console.error(err)
+        alert('Erro ao enviar para planilha')
+      }
+    })
 
-document.getElementById('btnLoad').addEventListener('click', ()=>carregarParcelas())
-document.querySelector('#parcelasTable').addEventListener('change', e=>{
-  if(e.target.matches('input[type=checkbox][data-id]')){
-    const id = e.target.dataset.id
-    const conf = getConf(); conf[id]=true; saveConf(conf)
-    carregarParcelas()
-  }
-})
-
-const hoje = new Date().toISOString().slice(0,10)
-document.getElementById('inicio').value = hoje
-document.getElementById('fim').value = hoje
-</script>
+    const hoje = new Date().toISOString().slice(0,10)
+    document.getElementById('inicio').value = hoje
+    document.getElementById('fim').value = hoje
+  </script>
 </body>
 </html>
