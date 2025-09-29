@@ -198,12 +198,24 @@
         return
       }
 
-      try{
-await fetch("https://script.google.com/macros/s/AKfycbwrVnSNiQEPGXQqjIbhWewFbWCnaIVV6BjQo3RABpo-TOcTyGeXtv5OI-VURbK1oGq--w/exec", {
-  method: "POST",
-  headers: { "Content-Type": "text/plain;charset=utf-8" },
-  body: JSON.stringify(payload)
-});
+   async function enviarConferidos(dados) {
+  try {
+    const r = await fetch("https://script.google.com/macros/s/AKfycbwrVnSNiQEPGXQqjIbhWewFbWCnaIVV6BjQo3RABpo-TOcTyGeXtv5OI-VURbK1oGq--w/exec", {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(dados)
+    });
+    const resp = await r.json();
+    if (resp.success) {
+      alert("Enviado para planilha com sucesso!");
+    } else {
+      alert("Erro do servidor: " + resp.error);
+    }
+  } catch (err) {
+    alert("Erro ao enviar para planilha: " + err.message);
+  }
+}
+
 
         alert('Parcelas marcadas como conferidas e registradas!')
       }catch(err){
