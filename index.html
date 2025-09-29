@@ -26,11 +26,12 @@
     table{width:100%;border-collapse:collapse}
     th{background:#fafcff;position:sticky;top:0;z-index:2;padding:8px;font-size:14px;text-align:left}
     td{padding:8px;border-bottom:1px solid #f1f5f9;font-size:13px;white-space:nowrap}
-    tr.novo{background:#d1fae5}       /* verde */
+    tr.ok{background:#d1fae5}        /* verde */
     tr.divergente{background:#fff3cd} /* laranja */
     .small{font-size:13px;color:var(--muted)}
     .meta{margin-left:auto}
     footer{padding:12px 16px;font-size:13px;color:var(--muted);display:flex;justify-content:space-between}
+    .btn-inline{margin-left:6px;padding:2px 6px;font-size:11px;border-radius:6px}
     @media(max-width:760px){table{font-size:12px}.controls{flex-direction:column;align-items:stretch}}
   </style>
 </head>
@@ -58,7 +59,6 @@
       </select>
       <button class="btn" id="btnLoad">Carregar</button>
       <button class="btn" id="btnConferido">Conferir</button>
-      <button class="btn-warn" id="btnReconferir">Reconferir</button>
       <button class="btn-danger" id="btnExcluir">Excluir</button>
     </div>
 
@@ -97,7 +97,7 @@
     const empresaSelect = document.getElementById('empresaSelect')
     const statusSelect = document.getElementById('statusSelect')
 
-    const ENDPOINT_SHEET = "https://script.google.com/macros/s/AKfycbyxbfFJWibd7usRG2HMF78poIetxguF_vLXRJpzNPbg87Au52oEpypvNHSTBQEjyhgsYg/exec" // trocar pela URL publicada
+    const ENDPOINT_SHEET = "https://script.google.com/macros/s/AKfycbytl9hky5Xmz6B6RaHeHFJhuIu7X_Nyz8aDrzmwLta-jGe9eg7Py_Q0AYXZKmXSCgq-Lw/exec" // coloque a URL publicada do Apps Script
 
     let planilhaCache = []
 
@@ -116,13 +116,15 @@
 
     function verificarDivergencia(it){
       const plan = planilhaCache.find(p => p.ID == it.ParcelaId)
-      if (!plan) return { tipo:"novo" }
+      if (!plan) return { tipo:"fora" } // não está na planilha → branco
+
       let diffs=[]
       if (Number(plan.Valor) !== Number(it.ValorBruto)) diffs.push("valor")
       if (plan.Vencimento !== it.Vencimento) diffs.push("vencimento")
       if (plan.Status !== it.Status) diffs.push("status")
       if (plan.Conta !== it.Conta) diffs.push("conta")
       if (plan["Meio Pagamento"] !== it.MeioDePagamento) diffs.push("meio")
+
       return diffs.length>0 ? { tipo:"divergente", campos:diffs } : { tipo:"ok" }
     }
 
@@ -155,21 +157,34 @@
       tbody.innerHTML=""
       const items=(apiResp.Result && apiResp.Result.Parcelas)||[]
       if(!items.length){tbody.innerHTML="<tr><td colspan=14>Nenhuma parcela</td></tr>";return}
+
       for(const it of items){
         const tr=document.createElement("tr")
         const check=verificarDivergencia(it)
-        if(check.tipo==="novo") tr.classList.add("novo")
+
+        if(check.tipo==="ok") tr.classList.add("ok") // verde
         if(check.tipo==="divergente") tr.classList.add("divergente")
+
+        const dados = JSON.stringify({
+          id: it.ParcelaId||"", empresa: it.DadosDoTitulo?.Empresa?.Nome||"",
+          fornecedor: it.DadosDoTitulo?.ClienteFornecedor?.Nome||"",
+          emissao: it.DadosDoTitulo?.Emissao||"", vencimento: it.Vencimento||"",
+          valor: it.ValorBruto||"", status: it.Status||"", conta: it.Conta||"",
+          meio: it.MeioDePagamento||"", tipoDoc: it.DadosDoTitulo?.TipoDeDocumento||"",
+          centroCusto: it.Rateio?.[0]?.CentroDeCusto||"", planoContas: it.Rateio?.[0]?.PlanoDeContas||"",
+          observacao: it.DadosDoTitulo?.Observacao||""
+        })
+
+        let btnReconferir = ""
+        if(check.tipo==="divergente"){
+          btnReconferir = `<button class="btn-warn btn-inline" onclick='enviarParaPlanilha("reconferir",[${dados}])'>Reconferir</button>`
+        }
+
         tr.innerHTML=`
-          <td><input type="checkbox" class="chkParcela" data-json='${JSON.stringify({
-            id: it.ParcelaId||"", empresa: it.DadosDoTitulo?.Empresa?.Nome||"",
-            fornecedor: it.DadosDoTitulo?.ClienteFornecedor?.Nome||"",
-            emissao: it.DadosDoTitulo?.Emissao||"", vencimento: it.Vencimento||"",
-            valor: it.ValorBruto||"", status: it.Status||"", conta: it.Conta||"",
-            meio: it.MeioDePagamento||"", tipoDoc: it.DadosDoTitulo?.TipoDeDocumento||"",
-            centroCusto: it.Rateio?.[0]?.CentroDeCusto||"", planoContas: it.Rateio?.[0]?.PlanoDeContas||"",
-            observacao: it.DadosDoTitulo?.Observacao||""
-          })}'></td>
+          <td>
+            <input type="checkbox" class="chkParcela" data-json='${dados}'>
+            ${btnReconferir}
+          </td>
           <td>${it.ParcelaId||""}</td>
           <td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td>
           <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</td>
@@ -197,8 +212,8 @@
       })
     }
 
-    async function enviarParaPlanilha(tipo){
-      const selecionados=[...document.querySelectorAll(".chkParcela:checked")].map(chk=>JSON.parse(chk.dataset.json))
+    async function enviarParaPlanilha(tipo, registrosDiretos){
+      let selecionados = registrosDiretos || [...document.querySelectorAll(".chkParcela:checked")].map(chk=>JSON.parse(chk.dataset.json))
       if(!selecionados.length){alert("Selecione ao menos uma parcela!");return}
       let body={acao:tipo, registros:selecionados}
       try{
@@ -214,7 +229,6 @@
 
     document.getElementById("btnLoad").addEventListener("click",carregarParcelas)
     document.getElementById("btnConferido").addEventListener("click",()=>enviarParaPlanilha("conferir"))
-    document.getElementById("btnReconferir").addEventListener("click",()=>enviarParaPlanilha("reconferir"))
     document.getElementById("btnExcluir").addEventListener("click",()=>enviarParaPlanilha("excluir"))
 
     const hoje=new Date().toISOString().slice(0,10)
