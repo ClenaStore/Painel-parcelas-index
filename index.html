@@ -82,7 +82,7 @@
   </div>
 
 <script>
-const API_PLANILHA = "https://script.google.com/macros/s/AKfycbzBrCgvDzGa_TsQCt83G-QOlWUGO6xEyfJyxv52rHfOoGUSM3Yv_y7mdp8EMncr596SXg/exec"
+const API_PLANILHA = "https://script.google.com/macros/s/AKfycbzycFnrb9RLPjiCdzCZ5yR_z-9gtH4B2oMNwxf1W1nGwavKvoEsec3IP553IQNgLmxF7w/exec"
 let planilhaCache = {}
 
 const statusEl = document.getElementById('status')
@@ -229,16 +229,21 @@ document.querySelector('#parcelasTable').addEventListener('change', async e=>{
   if(e.target.matches('input[type=checkbox][data-id]')){
     const id = e.target.dataset.id
     const row = e.target.closest("tr").children
+    const valorBruto = row[6].innerText.replace(/[^\d,.-]/g,"").replace(".","").replace(",",".")
     const registro = {
       id,
-      empresa: row[2].innerText,
-      fornecedor: row[3].innerText,
-      emissao: row[4].innerText,
-      vencimento: row[5].innerText,
-      valor: row[6].innerText,
-      status: row[7].innerText,
-      conta: row[8].innerText,
-      meio: row[9].innerText,
+      empresa: row[2].innerText || "",
+      fornecedor: row[3].innerText || "",
+      emissao: row[4].innerText || "",
+      vencimento: row[5].innerText || "",
+      valor: valorBruto || "",
+      status: row[7].innerText || "",
+      conta: row[8].innerText || "",
+      meio: row[9].innerText || "",
+      tipoDoc: row[10]?.innerText || "",
+      centroCusto: row[11]?.innerText || "",
+      planoContas: row[12]?.innerText || "",
+      observacao: row[13]?.innerText || "",
       acao: "inserir"
     }
     await fetch(API_PLANILHA,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(registro)})
@@ -249,16 +254,21 @@ document.querySelector('#parcelasTable').addEventListener('click', async e=>{
   if(e.target.matches('button.reconfirmar')){
     const id = e.target.dataset.id
     const row = e.target.closest("tr").children
+    const valorBruto = row[6].innerText.replace(/[^\d,.-]/g,"").replace(".","").replace(",",".")
     const registro = {
       id,
-      empresa: row[2].innerText,
-      fornecedor: row[3].innerText,
-      emissao: row[4].innerText,
-      vencimento: row[5].innerText,
-      valor: row[6].innerText,
-      status: row[7].innerText,
-      conta: row[8].innerText,
-      meio: row[9].innerText,
+      empresa: row[2].innerText || "",
+      fornecedor: row[3].innerText || "",
+      emissao: row[4].innerText || "",
+      vencimento: row[5].innerText || "",
+      valor: valorBruto || "",
+      status: row[7].innerText || "",
+      conta: row[8].innerText || "",
+      meio: row[9].innerText || "",
+      tipoDoc: row[10]?.innerText || "",
+      centroCusto: row[11]?.innerText || "",
+      planoContas: row[12]?.innerText || "",
+      observacao: row[13]?.innerText || "",
       acao: "atualizar"
     }
     await fetch(API_PLANILHA,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(registro)})
