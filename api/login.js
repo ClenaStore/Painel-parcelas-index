@@ -1,3 +1,4 @@
+// /api/login.js
 export default async function handler(req, res) {
   const INIT_TOKEN = process.env.F360_INIT_TOKEN;
   const BASE_URL = process.env.F360_BASE_URL || "https://financas.f360.com.br";
@@ -19,7 +20,6 @@ export default async function handler(req, res) {
     }
 
     const data = await r.json();
-    // A resposta pode conter { token: "jwt...", expiresIn: 1800 }
     return res.status(200).json({ ...data, baseUrl: BASE_URL });
   } catch (err) {
     return res.status(500).json({ error: err.message });
