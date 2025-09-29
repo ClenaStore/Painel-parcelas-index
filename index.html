@@ -19,9 +19,9 @@
     th,td{padding:8px;border-bottom:1px solid #f1f5f9;text-align:left;font-size:14px;white-space:nowrap}
     .footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:10px}
     .small{font-size:13px;color:var(--muted)}
-    .flag{color:green;font-weight:bold}
     .progress{height:8px;background:#e5e7eb;border-radius:6px;flex:1;overflow:hidden}
     .progress-bar{height:100%;background:var(--accent);width:0%}
+    .acoes button{margin-right:4px;padding:2px 6px;font-size:12px}
     @media (max-width:760px){table{font-size:12px}.controls{flex-direction:column;align-items:stretch}}
   </style>
 </head>
@@ -36,24 +36,15 @@
     </header>
 
     <div class="controls">
-      <select id="empresaSelect">
-        <option value="">-- Todas as empresas --</option>
-      </select>
+      <select id="empresaSelect"><option value="">-- Todas as empresas --</option></select>
       <input type="date" id="inicio" />
       <input type="date" id="fim" />
       <select id="tipoDatas">
         <option value="Emissão">Emissão</option>
         <option value="Vencimento">Vencimento</option>
       </select>
-      <select id="statusSelect">
-        <option value="">-- Todos os status --</option>
-        <option value="Aberto">Aberto</option>
-        <option value="Pago">Pago</option>
-        <option value="Cancelado">Cancelado</option>
-      </select>
-      <select id="meioSelect">
-        <option value="">-- Todos meios --</option>
-      </select>
+      <select id="statusSelect"><option value="">-- Todos os status --</option></select>
+      <select id="meioSelect"><option value="">-- Todos meios --</option></select>
       <input type="text" id="pesquisa" placeholder="🔍 Nome ou Valor" />
       <button id="btnLoad">Carregar</button>
     </div>
@@ -76,6 +67,7 @@
             <th>Centro de Custo</th>
             <th>Plano de Contas</th>
             <th>Observação</th>
+            <th>Ações</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -90,6 +82,7 @@
   </div>
 
 <script>
+const API_PLANILHA = "https://script.google.com/macros/s/AKfycbzMGPyol7PracD5bT2WlAdejv0EEU-6uZNs8p0hJmG_bhCTHae0xKTXYhcVbPL2tkmINg/exec" // <-- troque pela URL Apps Script
 const statusEl = document.getElementById('status')
 const lastUpdateEl = document.getElementById('lastUpdate')
 const empresaSelect = document.getElementById('empresaSelect')
@@ -124,6 +117,7 @@ async function carregarParcelas(){
     renderTable(data, meioFiltro, pesquisa)
     popularEmpresas(data)
     popularMeios(data)
+    popularStatus(data)
     setStatus('ok')
     lastUpdateEl.textContent = new Date().toLocaleString()
   }catch(err){ setStatus('erro fetch'); console.error(err) }
@@ -134,7 +128,7 @@ function renderTable(apiResp, meioFiltro, pesquisa){
   tbody.innerHTML = ''
   const items = (apiResp.Result && apiResp.Result.Parcelas) || []
   if(!Array.isArray(items) || items.length===0){
-    tbody.innerHTML = '<tr><td colspan="14">Nenhuma parcela encontrada</td></tr>'
+    tbody.innerHTML = '<tr><td colspan="15">Nenhuma parcela encontrada</td></tr>'
     return
   }
 
@@ -143,34 +137,51 @@ function renderTable(apiResp, meioFiltro, pesquisa){
 
   for(const it of items){
     total++
-    const id = it.ParcelaId || ''
+    const id = it.ParcelaId
     const fornecedor = it.DadosDoTitulo?.ClienteFornecedor?.Nome || ''
-    const valor = it.ValorBruto || ''
+    const valor = it.ValorBruto
+    const status = it.Status || ''
     const meio = it.MeioDePagamento || ''
 
-    // filtros extras
+    // filtros
     if(meioFiltro && meio!==meioFiltro) continue
     if(pesquisa && !(fornecedor.toLowerCase().includes(pesquisa) || String(valor).includes(pesquisa))) continue
 
-    const conferido = conf[id]
-    if(conferido) conferidos++
+    let flag = "", botoes=""
+    if(conf[id]){
+      const snap = conf[id]
+      if(snap.valor != valor || snap.status != status){
+        flag = "🟧"
+        botoes = `
+          <button class="reconfirmar" data-id="${id}">🔄 Reconfirmar</button>
+          <button class="excluir" data-id="${id}">❌ Excluir</button>
+        `
+      } else {
+        flag = "✅"
+        conferidos++
+        botoes = `<button class="excluir" data-id="${id}">❌ Excluir</button>`
+      }
+    } else {
+      flag = `<input type="checkbox" data-id="${id}">`
+    }
 
     const tr = document.createElement('tr')
     tr.innerHTML = `
-      <td>${conferido ? "✅" : `<input type="checkbox" data-id="${id}">`}</td>
+      <td>${flag}</td>
       <td>${id}</td>
       <td>${it.DadosDoTitulo?.Empresa?.Nome || ''}</td>
       <td>${fornecedor}</td>
       <td>${it.DadosDoTitulo?.Emissao || ''}</td>
       <td>${it.Vencimento || ''}</td>
       <td>${valor.toLocaleString?.('pt-BR',{style:'currency',currency:'BRL'}) || valor}</td>
-      <td>${it.Status || ''}</td>
+      <td>${status}</td>
       <td>${it.Conta || ''}</td>
       <td>${meio}</td>
       <td>${it.DadosDoTitulo?.TipoDeDocumento || ''}</td>
       <td>${it.Rateio?.[0]?.CentroDeCusto || ''}</td>
       <td>${it.Rateio?.[0]?.PlanoDeContas || ''}</td>
       <td>${it.DadosDoTitulo?.Observacao || ''}</td>
+      <td class="acoes">${botoes}</td>
     `
     tbody.appendChild(tr)
   }
@@ -191,7 +202,6 @@ function popularEmpresas(apiResp){
     const opt = document.createElement('option'); opt.value=e; opt.textContent=e; empresaSelect.appendChild(opt)
   })
 }
-
 function popularMeios(apiResp){
   const items = (apiResp.Result && apiResp.Result.Parcelas) || []
   const meios = [...new Set(items.map(it=>it.MeioDePagamento).filter(Boolean))]
@@ -200,12 +210,66 @@ function popularMeios(apiResp){
     const opt = document.createElement('option'); opt.value=m; opt.textContent=m; meioSelect.appendChild(opt)
   })
 }
+function popularStatus(apiResp){
+  const items = (apiResp.Result && apiResp.Result.Parcelas) || []
+  const statusList = [...new Set(items.map(it=>it.Status).filter(Boolean))]
+  statusSelect.innerHTML = '<option value="">-- Todos os status --</option>'
+  statusList.forEach(s=>{
+    const opt = document.createElement('option'); opt.value=s; opt.textContent=s; statusSelect.appendChild(opt)
+  })
+}
 
+// ---- Eventos
 document.getElementById('btnLoad').addEventListener('click', ()=>carregarParcelas())
-document.querySelector('#parcelasTable').addEventListener('change', e=>{
+document.querySelector('#parcelasTable').addEventListener('change', async e=>{
   if(e.target.matches('input[type=checkbox][data-id]')){
     const id = e.target.dataset.id
-    const conf = getConf(); conf[id]=true; saveConf(conf)
+    const row = e.target.closest("tr").children
+    const registro = {
+      id,
+      empresa: row[2].innerText,
+      fornecedor: row[3].innerText,
+      emissao: row[4].innerText,
+      vencimento: row[5].innerText,
+      valor: row[6].innerText,
+      status: row[7].innerText,
+      conta: row[8].innerText,
+      meio: row[9].innerText
+    }
+    const conf = getConf(); conf[id]=registro; saveConf(conf)
+    try{
+      await fetch(API_PLANILHA, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...registro,acao:"inserir"})})
+    }catch(err){ console.error("Erro salvar",err) }
+    carregarParcelas()
+  }
+})
+document.querySelector('#parcelasTable').addEventListener('click', async e=>{
+  if(e.target.matches('button.reconfirmar')){
+    const id = e.target.dataset.id
+    const row = e.target.closest("tr").children
+    const registro = {
+      id,
+      empresa: row[2].innerText,
+      fornecedor: row[3].innerText,
+      emissao: row[4].innerText,
+      vencimento: row[5].innerText,
+      valor: row[6].innerText,
+      status: row[7].innerText,
+      conta: row[8].innerText,
+      meio: row[9].innerText
+    }
+    const conf = getConf(); conf[id]=registro; saveConf(conf)
+    try{
+      await fetch(API_PLANILHA, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...registro,acao:"atualizar"})})
+    }catch(err){ console.error("Erro atualizar",err) }
+    carregarParcelas()
+  }
+  if(e.target.matches('button.excluir')){
+    const id = e.target.dataset.id
+    const conf = getConf(); delete conf[id]; saveConf(conf)
+    try{
+      await fetch(API_PLANILHA, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,acao:"excluir"})})
+    }catch(err){ console.error("Erro excluir",err) }
     carregarParcelas()
   }
 })
