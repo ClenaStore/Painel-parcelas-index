@@ -199,11 +199,12 @@
       }
 
       try{
-        await fetch('https://script.google.com/macros/s/AKfycbwrVnSNiQEPGXQqjIbhWewFbWCnaIVV6BjQo3RABpo-TOcTyGeXtv5OI-VURbK1oGq--w/exec', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify(selecionados)
-        })
+await fetch("https://script.google.com/macros/s/AKfycbwrVnSNiQEPGXQqjIbhWewFbWCnaIVV6BjQo3RABpo-TOcTyGeXtv5OI-VURbK1oGq--w/exec", {
+  method: "POST",
+  headers: { "Content-Type": "text/plain;charset=utf-8" },
+  body: JSON.stringify(payload)
+});
+
         alert('Parcelas marcadas como conferidas e registradas!')
       }catch(err){
         console.error(err)
