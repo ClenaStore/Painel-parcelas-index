@@ -83,6 +83,8 @@
 
 <script>
 const API_PLANILHA = "https://script.google.com/macros/s/AKfycbzMGPyol7PracD5bT2WlAdejv0EEU-6uZNs8p0hJmG_bhCTHae0xKTXYhcVbPL2tkmINg/exec" // <-- troque pela URL Apps Script
+let planilhaCache = {}
+
 const statusEl = document.getElementById('status')
 const lastUpdateEl = document.getElementById('lastUpdate')
 const empresaSelect = document.getElementById('empresaSelect')
@@ -91,10 +93,6 @@ const meioSelect = document.getElementById('meioSelect')
 const pesquisaInput = document.getElementById('pesquisa')
 
 function setStatus(t){ statusEl.textContent = t }
-
-// storage conferência
-function getConf(){ return JSON.parse(localStorage.getItem('conferidos')||'{}') }
-function saveConf(obj){ localStorage.setItem('conferidos', JSON.stringify(obj)) }
 
 async function carregarParcelas(){
   const inicio = document.getElementById('inicio').value
@@ -105,64 +103,70 @@ async function carregarParcelas(){
   const meioFiltro = meioSelect.value
   const pesquisa = pesquisaInput.value.toLowerCase()
 
-  const params = new URLSearchParams({pagina:1,tipo:'Despesa',inicio,fim,tipoDatas})
-  if(empresa) params.append('empresa',empresa)
-  if(statusFiltro) params.append('status',statusFiltro)
-
   setStatus('carregando...')
+
   try{
-    const r = await fetch('/api/parcelas?'+params.toString())
-    if(!r.ok){ setStatus('erro: '+r.status); return }
-    const data = await r.json()
-    renderTable(data, meioFiltro, pesquisa)
-    popularEmpresas(data)
-    popularMeios(data)
-    popularStatus(data)
+    // API F360
+    const params = new URLSearchParams({pagina:1,tipo:'Despesa',inicio,fim,tipoDatas})
+    if(empresa) params.append('empresa',empresa)
+    if(statusFiltro) params.append('status',statusFiltro)
+
+    const apiData = await fetch('/api/parcelas?'+params.toString()).then(r=>r.json())
+
+    // Planilha
+    const planilhaData = await fetch(API_PLANILHA+"?acao=listar").then(r=>r.json())
+    planilhaCache = {}
+    planilhaData.forEach(r => planilhaCache[r.id]=r)
+
+    renderTable(apiData, meioFiltro, pesquisa)
+    popularEmpresas(apiData)
+    popularMeios(apiData)
+    popularStatus(apiData)
+
     setStatus('ok')
     lastUpdateEl.textContent = new Date().toLocaleString()
-  }catch(err){ setStatus('erro fetch'); console.error(err) }
+  }catch(err){
+    console.error(err)
+    setStatus('erro fetch')
+  }
 }
 
 function renderTable(apiResp, meioFiltro, pesquisa){
   const tbody = document.querySelector('#parcelasTable tbody')
   tbody.innerHTML = ''
   const items = (apiResp.Result && apiResp.Result.Parcelas) || []
-  if(!Array.isArray(items) || items.length===0){
+  if(!items.length){
     tbody.innerHTML = '<tr><td colspan="15">Nenhuma parcela encontrada</td></tr>'
     return
   }
 
-  const conf = getConf()
   let total=0, conferidos=0
-
   for(const it of items){
     total++
     const id = it.ParcelaId
     const fornecedor = it.DadosDoTitulo?.ClienteFornecedor?.Nome || ''
     const valor = it.ValorBruto
-    const status = it.Status || ''
+    const status = it.Status
     const meio = it.MeioDePagamento || ''
 
-    // filtros
     if(meioFiltro && meio!==meioFiltro) continue
     if(pesquisa && !(fornecedor.toLowerCase().includes(pesquisa) || String(valor).includes(pesquisa))) continue
 
-    let flag = "", botoes=""
-    if(conf[id]){
-      const snap = conf[id]
-      if(snap.valor != valor || snap.status != status){
-        flag = "🟧"
-        botoes = `
-          <button class="reconfirmar" data-id="${id}">🔄 Reconfirmar</button>
-          <button class="excluir" data-id="${id}">❌ Excluir</button>
-        `
-      } else {
-        flag = "✅"
-        conferidos++
-        botoes = `<button class="excluir" data-id="${id}">❌ Excluir</button>`
-      }
-    } else {
+    let flag="", botoes=""
+    const regPlanilha = planilhaCache[id]
+
+    if(!regPlanilha){
       flag = `<input type="checkbox" data-id="${id}">`
+    } else if(regPlanilha.statusRegistro=="Excluido"){
+      flag = "❌"
+    } else if(regPlanilha.valor != valor || regPlanilha.status != status){
+      flag = "🟧"
+      botoes = `<button class="reconfirmar" data-id="${id}">🔄 Reconfirmar</button>
+                <button class="excluir" data-id="${id}">❌ Excluir</button>`
+    } else {
+      flag = "✅"
+      conferidos++
+      botoes = `<button class="excluir" data-id="${id}">❌ Excluir</button>`
     }
 
     const tr = document.createElement('tr')
@@ -234,12 +238,10 @@ document.querySelector('#parcelasTable').addEventListener('change', async e=>{
       valor: row[6].innerText,
       status: row[7].innerText,
       conta: row[8].innerText,
-      meio: row[9].innerText
+      meio: row[9].innerText,
+      acao: "inserir"
     }
-    const conf = getConf(); conf[id]=registro; saveConf(conf)
-    try{
-      await fetch(API_PLANILHA, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...registro,acao:"inserir"})})
-    }catch(err){ console.error("Erro salvar",err) }
+    await fetch(API_PLANILHA,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(registro)})
     carregarParcelas()
   }
 })
@@ -256,20 +258,15 @@ document.querySelector('#parcelasTable').addEventListener('click', async e=>{
       valor: row[6].innerText,
       status: row[7].innerText,
       conta: row[8].innerText,
-      meio: row[9].innerText
+      meio: row[9].innerText,
+      acao: "atualizar"
     }
-    const conf = getConf(); conf[id]=registro; saveConf(conf)
-    try{
-      await fetch(API_PLANILHA, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...registro,acao:"atualizar"})})
-    }catch(err){ console.error("Erro atualizar",err) }
+    await fetch(API_PLANILHA,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(registro)})
     carregarParcelas()
   }
   if(e.target.matches('button.excluir')){
     const id = e.target.dataset.id
-    const conf = getConf(); delete conf[id]; saveConf(conf)
-    try{
-      await fetch(API_PLANILHA, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,acao:"excluir"})})
-    }catch(err){ console.error("Erro excluir",err) }
+    await fetch(API_PLANILHA,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,acao:"excluir"})})
     carregarParcelas()
   }
 })
