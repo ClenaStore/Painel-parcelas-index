@@ -28,7 +28,7 @@
     <header>
       <div>
         <h1>Painel • Listar Parcelas (F360)</h1>
-        <div class="small">Conecte ao F360 via token. Use Vercel + GitHub. Veja instruções no final.</div>
+        <div class="small">Conectado ao F360 via API segura (Vercel).</div>
       </div>
       <div class="meta small">Status: <span id="status">inicializando...</span></div>
     </header>
@@ -36,9 +36,6 @@
     <div class="controls">
       <select id="empresaSelect">
         <option value="">-- Todas as empresas --</option>
-        <!-- Substitua pelas empresas reais ou carregue dinamicamente -->
-        <option value="Empresa A">Empresa A</option>
-        <option value="Empresa B">Empresa B</option>
       </select>
 
       <input type="date" id="inicio" />
@@ -50,11 +47,6 @@
       </select>
 
       <button id="btnLoad">Carregar parcelas</button>
-
-      <div style="margin-left:auto;display:flex;gap:8px">
-        <button id="btnLogin">Fazer login (server)</button>
-        <button id="btnClear">Limpar token</button>
-      </div>
     </div>
 
     <div id="tableWrap">
@@ -68,103 +60,60 @@
 
     <div class="footer">
       <div class="small">Última atualização: <span id="lastUpdate">—</span></div>
-      <div><span id="pageInfo" class="small"></span></div>
     </div>
-
-    <pre id="debug" style="margin-top:12px;display:none;background:#0b1220;color:#e5f0ff;padding:8px;border-radius:8px;overflow:auto;max-height:140px"></pre>
   </div>
 
   <script>
-    // ---------- CONFIG (editar antes da implantação) ----------
-    // Front-end chama /api/login (serverless on Vercel). Você deve criar essa rota
-    // com as variáveis de ambiente F360_INIT_TOKEN e F360_BASE_URL.
-    const LOGIN_ENDPOINT = '/api/login' // serverless (você adiciona)
-    // Caso queira testar localmente sem serverless, coloque o token inicial abaixo (NÃO recomendado em produção):
-    // const DEBUG_INIT_TOKEN = 'ac0399fb-55dc-4c5c-bdde-0e3cf5943ac5'
-
-    // ---------- estado ----------
-    let jwt = null
-    let jwtExpiresAt = 0
-
     const statusEl = document.getElementById('status')
-    const debugEl = document.getElementById('debug')
     const lastUpdateEl = document.getElementById('lastUpdate')
+    const empresaSelect = document.getElementById('empresaSelect')
 
     function setStatus(t){ statusEl.textContent = t }
-    function dbg(o){ debugEl.style.display = 'block'; debugEl.textContent = JSON.stringify(o,null,2) }
 
-    // Faz login chamando a rota server-side (não expõe credenciais no cliente)
-    async function serverLogin(){
-      setStatus('fazendo login...')
+    // Chama o endpoint serverless que já faz login e retorna as parcelas
+    async function carregarParcelas(){
+      const inicio = document.getElementById('inicio').value
+      const fim = document.getElementById('fim').value
+      const tipoDatas = document.getElementById('tipoDatas').value
+      const empresa = empresaSelect.value
+
+      const params = new URLSearchParams({
+        pagina: 1,
+        tipo: 'Despesa',
+        inicio,
+        fim,
+        tipoDatas
+      })
+      if (empresa) params.append('empresa', empresa)
+
+      setStatus('carregando...')
       try{
-        const r = await fetch(LOGIN_ENDPOINT)
-        if(!r.ok) throw new Error('login falhou: '+r.status)
-        const data = await r.json()
-        // Aceita várias formas de resposta: {token}, {jwt}, {accessToken}, {data:{token}}
-        jwt = data.jwt || data.token || data.accessToken || (data.data && (data.data.token||data.data.jwt))
-        // tenta extrair exp (segundos) se houver
-        jwtExpiresAt = data.expiresAt || data.exp || 0
-        if(!jwt){ setStatus('login ok (sem token retornado)'); dbg(data); return }
-        setStatus('logado')
-        scheduleRefresh()
-        return data
-      }catch(err){ setStatus('erro login'); dbg({err:err.message}); console.error(err) }
-    }
-
-    // Agenda refresh um pouco antes do expiry. Se não houver expiry, refresca a cada 25 minutos.
-    let refreshTimer = null
-    function scheduleRefresh(){
-      if(refreshTimer) clearTimeout(refreshTimer)
-      let ms = 25*60*1000 // default 25min
-      if(jwtExpiresAt){
-        const now = Date.now()/1000
-        const secondsLeft = jwtExpiresAt - now
-        // refresh 60s antes
-        ms = Math.max((secondsLeft - 60)*1000, 20*1000)
-      }
-      refreshTimer = setTimeout(()=>{ serverLogin(); }, ms)
-    }
-
-    // Carrega parcelas a partir da API pública usando o jwt
-    async function loadParcelas(params={pagina:1,tipo:'Despesa',inicio:'',fim:'',tipoDatas:'Emissão'}){
-      if(!jwt){ setStatus('sem token, clique em "Fazer login"') ; return }
-      setStatus('carregando parcelas...')
-
-      // Construir URL (substitua {{URL}} pelo host base retornado pelo serverless, ou configure na função serverless)
-      // Ex: https://financas.f360.com.br/ParcelasDeTituloPublicAPI/ListarParcelasDeTitulos
-      const base = await getBaseUrl()
-      const qs = new URLSearchParams(params)
-      const url = base + '/ParcelasDeTituloPublicAPI/ListarParcelasDeTitulos?' + qs.toString()
-
-      try{
-        const r = await fetch(url, { headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer '+jwt } })
+        const r = await fetch('/api/login?' + params.toString())
         if(!r.ok){
-          setStatus('erro ao buscar parcelas: '+r.status)
-          const t = await r.text(); dbg({status:r.status, body:t}); return
+          setStatus('erro: '+r.status)
+          return
         }
         const data = await r.json()
         renderTable(data)
-        setStatus('parcelas carregadas')
+        popularEmpresas(data)
+        setStatus('ok')
         lastUpdateEl.textContent = new Date().toLocaleString()
-      }catch(err){ setStatus('erro fetch'); dbg({err:err.message}); console.error(err) }
+      }catch(err){
+        setStatus('erro fetch')
+        console.error(err)
+      }
     }
 
-    // Renderiza a resposta na tabela. Ajuste de acordo com o formato real da API.
     function renderTable(apiResp){
       const tbody = document.querySelector('#parcelasTable tbody')
       tbody.innerHTML = ''
-      // A resposta típica pode ter {items: [...]} ou poder ser um array direto
       const items = apiResp.items || apiResp.data || apiResp || []
-      if(!Array.isArray(items)){
-        // tenta extrair de propriedades comuns
-        for(const k in apiResp){ if(Array.isArray(apiResp[k])){ return renderTable(apiResp[k]) } }
-        dbg(apiResp); return
-      }
+      if(!Array.isArray(items)) return
       if(items.length===0){ tbody.innerHTML = '<tr><td colspan="6">Nenhuma parcela encontrada</td></tr>'; return }
 
       for(const it of items){
         const tr = document.createElement('tr')
-        const id = it.id || it.tituloId || it.parcelaId || it.cod || ''
+        const id = it.id || it.tituloId || it.parcelaId || ''
         const empresa = it.empresa || it.filial || it.nomeEmpresa || ''
         const fornecedor = it.fornecedor || it.historico || it.nome || ''
         const venc = it.vencimento || it.dataVencimento || it.emissao || ''
@@ -175,77 +124,25 @@
       }
     }
 
-    // Busca base url do server (para permitir troca do host sem mudar front-end)
-    async function getBaseUrl(){
-      // rota /api/login pode devolver também baseUrl; caso contrário altere aqui para o host correto.
-      try{
-        const r = await fetch('/api/login/meta')
-        if(!r.ok) return ''
-        const d = await r.json()
-        return d.baseUrl || ''
-      }catch(e){ return '' }
+    function popularEmpresas(apiResp){
+      const items = apiResp.items || apiResp.data || apiResp || []
+      if(!Array.isArray(items)) return
+      const empresas = [...new Set(items.map(it => it.empresa || it.filial || it.nomeEmpresa).filter(Boolean))]
+      empresaSelect.innerHTML = '<option value="">-- Todas as empresas --</option>'
+      empresas.forEach(e =>{
+        const opt = document.createElement('option')
+        opt.value = e
+        opt.textContent = e
+        empresaSelect.appendChild(opt)
+      })
     }
 
-    // eventos
-    document.getElementById('btnLogin').addEventListener('click', ()=>serverLogin())
-    document.getElementById('btnClear').addEventListener('click', ()=>{ jwt=null; jwtExpiresAt=0; setStatus('token limpo') })
-    document.getElementById('btnLoad').addEventListener('click', ()=>{
-      const empresa = document.getElementById('empresaSelect').value
-      const inicio = document.getElementById('inicio').value
-      const fim = document.getElementById('fim').value
-      const tipoDatas = document.getElementById('tipoDatas').value
-      const params = { pagina:1, tipo:'Despesa', inicio: inicio || '', fim: fim || '', tipoDatas: tipoDatas }
-      if(empresa) params.empresa = empresa
-      loadParcelas(params)
-    })
+    document.getElementById('btnLoad').addEventListener('click', ()=>carregarParcelas())
 
     // Inicializa datas para hoje
     const hoje = new Date().toISOString().slice(0,10)
     document.getElementById('inicio').value = hoje
     document.getElementById('fim').value = hoje
-
-    // tenta login automático ao abrir (chama serverless que usa variáveis de ambiente seguras)
-    (async ()=>{ await serverLogin() })()
-
-    // ---------------------------
-    // Instruções para criar a rota serverless /api/login (Vercel)
-    // ---------------------------
-    /*
-    // Crie um arquivo: /api/login.js (Node/Serverless em Vercel)
-
-    export default async function handler(req, res){
-      // Variáveis de ambiente (configurar no Vercel):
-      // F360_INIT_TOKEN => token curto (ex: ac0399fb-... ) que você mostra no Postman
-      // F360_BASE_URL  => https://financas.f360.com.br
-      const INIT_TOKEN = process.env.F360_INIT_TOKEN
-      const BASE_URL = process.env.F360_BASE_URL || 'https://financas.f360.com.br'
-
-      if(!INIT_TOKEN) return res.status(500).json({error:'F360_INIT_TOKEN não definido'})
-
-      try{
-        // Faz POST para obter a chave maior (JWT)
-        const r = await fetch(BASE_URL + '/PublicLoginAPI/DoLogin',{
-          method:'POST',
-          headers:{ 'Content-Type':'application/json' },
-          body: JSON.stringify({ token: INIT_TOKEN })
-        })
-        const data = await r.json()
-        // Ex.: data = { token: 'JWT_LONG_TOKEN', expiresIn: 1800 }
-
-        // Opcional: retornar também a baseUrl para o front-end
-        res.status(200).json({ ...data, baseUrl: BASE_URL })
-      }catch(err){
-        res.status(500).json({ error: err.message })
-      }
-    }
-
-    // NOTAS:
-    // 1) NÃO coloque o INIT_TOKEN no front-end. Use a rota serverless para proteger a credencial.
-    // 2) No Vercel: Settings -> Environment Variables -> adicionar F360_INIT_TOKEN e F360_BASE_URL
-    // 3) Commitar /api/login.js junto com este index.html no seu repositório GitHub e conectar ao Vercel.
-    // 4) Se a API de login devolver outro formato, adapte a extração do jwt no front-end.
-    */
-
   </script>
 </body>
 </html>
