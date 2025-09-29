@@ -70,7 +70,7 @@
 
     function setStatus(t){ statusEl.textContent = t }
 
-    // Chama o endpoint serverless que já faz login e retorna as parcelas
+    // Chama o endpoint serverless /api/parcelas
     async function carregarParcelas(){
       const inicio = document.getElementById('inicio').value
       const fim = document.getElementById('fim').value
@@ -88,7 +88,7 @@
 
       setStatus('carregando...')
       try{
-        const r = await fetch('/api/login?' + params.toString())
+        const r = await fetch('/api/parcelas?' + params.toString())
         if(!r.ok){
           setStatus('erro: '+r.status)
           return
