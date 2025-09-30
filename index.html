@@ -506,7 +506,7 @@ document.getElementById("btnConferido").addEventListener("click",async ()=>{
 
 const hoje = new Date();
 const cincoDiasAtras = new Date();
-cincoDiasAtras.setDate(hoje.getDate() - 1); // Quantidade de dias para trás do dia atual
+cincoDiasAtras.setDate(hoje.getDate() + 1); // Quantidade de dias para trás do dia atual
 
 document.getElementById("inicio").value = cincoDiasAtras.toISOString().slice(0,10);
 document.getElementById("fim").value = hoje.toISOString().slice(0,10);
