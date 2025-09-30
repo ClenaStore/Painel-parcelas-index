@@ -32,6 +32,9 @@
     tr:hover{background:#f9fafb}
 tr.ok:hover{background:#d1fae5 !important}        /* mantém verde */
 tr.divergente:hover{background:#fff3cd !important} /* mantém amarelo */
+.chkParcela:checked {
+  accent-color: var(--ok); /* verde */
+}
 
     .small{font-size:13px;color:var(--muted)}
     .meta{margin-left:auto}
@@ -290,17 +293,47 @@ tr.divergente:hover{background:#fff3cd !important} /* mantém amarelo */
     await enviarParaPlanilha("reconferir",[reg])
   }
 
-  async function enviarParaPlanilha(tipo,registrosDiretos){
-    let selecionados=registrosDiretos||[...document.querySelectorAll(".chkParcela:checked")].map(chk=>JSON.parse(chk.dataset.json))
-    if(!selecionados.length){alert("Selecione ao menos uma parcela!");return}
-    let body={acao:tipo,registros:selecionados}
-    try{
-      const r=await fetch(ENDPOINT_SHEET,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)})
-      const resp=await r.json()
-      alert((resp.success?"OK: ":"Erro: ")+JSON.stringify(resp))
-      await carregarParcelas(false)
-    }catch(e){alert("Erro GAS");console.error(e)}
+async function enviarParaPlanilha(tipo, registrosDiretos){
+  let selecionados=registrosDiretos||[...document.querySelectorAll(".chkParcela:checked")].map(chk=>JSON.parse(chk.dataset.json))
+  if(!selecionados.length){alert("Selecione ao menos uma parcela!");return}
+  let body={acao:tipo,registros:selecionados}
+
+  // deixa prévia verde
+  selecionados.forEach(reg=>{
+    const tr=document.querySelector(`input[data-id="${reg.id}"]`)?.closest("tr")
+    if(tr){ 
+      tr.classList.add("ok")
+      tr.style.opacity="0.6" // prévia (meio transparente)
+    }
+  })
+
+  try{
+    const r=await fetch(ENDPOINT_SHEET,{
+      method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify(body)
+    })
+    const resp=await r.json()
+
+    if(resp.success){
+      // confirmação definitiva
+      selecionados.forEach(reg=>{
+        const tr=document.querySelector(`input[data-id="${reg.id}"]`)?.closest("tr")
+        if(tr){ 
+          tr.classList.add("ok")
+          tr.style.opacity="1" // volta normal = verde definitivo
+          const chk=tr.querySelector("input.chkParcela")
+          if(chk){ chk.checked=true; chk.style.accentColor="green" } // checkbox verde
+        }
+      })
+    }else{
+      alert("Erro: "+JSON.stringify(resp))
+    }
+  }catch(e){
+    alert("Erro GAS");console.error(e)
   }
+}
+
 
   document.getElementById("btnLoad").addEventListener("click",()=>carregarParcelas(true))
   document.getElementById("btnConferido").addEventListener("click",()=>enviarParaPlanilha("conferir"))
@@ -313,8 +346,6 @@ tr.divergente:hover{background:#fff3cd !important} /* mantém amarelo */
 
   // Primeira carga com overlay
   carregarParcelas(true)
-  // Atualizações internas sem overlay
-  setInterval(()=>carregarParcelas(false),10000)
 </script>
 
 
