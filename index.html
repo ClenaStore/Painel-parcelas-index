@@ -285,27 +285,38 @@ async function carregarParcelas(mostrarOverlay=false){
 }
 function aplicarFiltros(items){
   const empresa=empresaSelect.value;
-  const statusSel=getStatusSelecionados();
+  const statusSel = getStatusSelecionados().map(simplifyText); // <- pega vários
   const meiosSel=getMeiosSelecionados().map(simplifyText);
   const tipoDatas=document.getElementById('tipoDatas').value;
   const dIni=parseISO(document.getElementById('inicio').value);
   const dFim=parseISO(document.getElementById('fim').value);
   const q=(document.getElementById("searchBox").value||"").toLowerCase();
+
   return items.filter(it=>{
     const txt=((it.DadosDoTitulo?.ClienteFornecedor?.Nome||"")+" "+(it.DadosDoTitulo?.Empresa?.Nome||"")+" "+(it.DadosDoTitulo?.Observacao||"")).toLowerCase();
     if(q && !txt.includes(q)) return false;
     if(empresa && (it.DadosDoTitulo?.Empresa?.Nome||"")!==empresa) return false;
-    if(statusSel.length && !statusSel.includes(it.Status||"")) return false;
+
+    // --- STATUS ---
+    if(statusSel.length){
+      const st=simplifyText(it.Status||"");
+      if(!statusSel.includes(st)) return false;
+    }
+
+    // --- MEIO ---
     if(meiosSel.length){
       const meio=simplifyText(it.MeioDePagamento||"");
       if(!meiosSel.includes(meio)) return false;
     }
+
     const ref = tipoDatas==="Emissão" ? parseISO(it.DadosDoTitulo?.Emissao) : parseISO(it.Vencimento);
     if(dIni && ref && ref<dIni) return false;
     if(dFim && ref && ref>dFim) return false;
+
     return true;
   });
 }
+
 function renderTable(apiResp){
   const tbody=document.querySelector("#parcelasTable tbody"); tbody.innerHTML="";
   const raw=(apiResp.Result&&apiResp.Result.Parcelas)||[];
