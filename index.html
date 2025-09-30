@@ -235,7 +235,9 @@ function verificarDivergencia(item){
   const vencSys=(item.Vencimento||"").split("T")[0];
 
   const diffs=[];
-  if(valorPlan!==valorSys) diffs.push("Valor");
+if(valorPlan != null && valorSys != null && Number(valorPlan) !== Number(valorSys)) {
+  diffs.push("Valor");
+}
   if(fornPlan!==fornSys) diffs.push("Fornecedor");
   if(emissaoPlan!==emissaoSys) diffs.push("Emissão");
   if(vencPlan!==vencSys) diffs.push("Vencimento");
