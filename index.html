@@ -157,11 +157,9 @@ function renderTable(apiResp){
   tbody.innerHTML=""
   let items=(apiResp.Result&&apiResp.Result.Parcelas)||[]
 
-  // filtro empresa
   if(empresaSelect.value) items=items.filter(it=>(it.DadosDoTitulo?.Empresa?.Nome||"")===empresaSelect.value)
-  // filtro status
   if(statusSelect.value) items=items.filter(it=>(it.Status||"").includes(statusSelect.value))
-  // filtro busca
+
   const search=document.getElementById("searchBox").value.toLowerCase()
   if(search) items=items.filter(it=>{
     const t=(it.DadosDoTitulo?.ClienteFornecedor?.Nome||"")+" "+(it.DadosDoTitulo?.Empresa?.Nome||"")+" "+(it.DadosDoTitulo?.Observacao||"")
@@ -180,8 +178,9 @@ function renderTable(apiResp){
       tr.classList.add("divergente")
       avisoCell=`<span class="pulse-dot" onclick='abrirPopup(${JSON.stringify(JSON.stringify(it))})'></span>`
     }
+    const dados=JSON.stringify({id:it.ParcelaId,fornecedor:it.DadosDoTitulo?.ClienteFornecedor?.Nome||"",valor:it.ValorBruto})
     tr.innerHTML=`
-      <td><input type="checkbox"></td>
+      <td><input type="checkbox" class="chkParcela" data-json='${dados}'></td>
       <td>${it.ParcelaId||""}</td><td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td>
       <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</td>
       <td>${it.DadosDoTitulo?.Emissao||""}</td><td>${it.Vencimento||""}</td>
@@ -245,7 +244,14 @@ async function carregarParcelas(primeiraVez=true){
 
 // eventos globais
 document.getElementById("btnLoad").addEventListener("click",()=>carregarParcelas(false))
-document.getElementById("btnConferido").addEventListener("click",()=>alert("Conferência salva (mock)!"))
+document.getElementById("btnConferido").addEventListener("click",()=>{
+  const registros=[]
+  document.querySelectorAll(".chkParcela:checked").forEach(el=>{
+    const reg=JSON.parse(el.dataset.json)
+    registros.push(reg)
+  })
+  if(registros.length) enviarParaPlanilha("conferir",registros)
+})
 document.getElementById("searchBox").addEventListener("input",()=>renderTable(apiCache))
 
 // inicia
