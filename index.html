@@ -172,7 +172,7 @@ tr.divergente:hover{background:#fff3cd !important} /* mantém amarelo */
   }
 
   function verificarDivergencia(it){
-    const plan=planilhaCache.find(p=>p.ID==it.ParcelaId)
+    const plan=planilhaCache.find(p=>String(p.ID).trim()===String(it.ParcelaId).trim())
     if(!plan) return {tipo:"fora"} 
     const valorPlan=normalizeMoney(plan.Valor)
     const valorSys=normalizeMoney(it.ValorBruto)
@@ -335,7 +335,18 @@ async function enviarParaPlanilha(tipo, registros){
   }
 }
   document.getElementById("btnLoad").addEventListener("click",()=>carregarParcelas(true))
-  document.getElementById("btnConferido").addEventListener("click",()=>enviarParaPlanilha("conferir"))
+  document.getElementById("btnConferido").addEventListener("click",()=>{
+  const registros = []
+  document.querySelectorAll(".chkParcela, .btn-inline").forEach(el=>{
+    let data = el.dataset.json
+    if(data){
+      const reg = JSON.parse(data)
+      if(flaggedIds.includes(reg.id)) registros.push(reg)
+    }
+  })
+  if(registros.length) enviarParaPlanilha("conferir", registros)
+})
+
   document.getElementById("btnExcluir").addEventListener("click",()=>enviarParaPlanilha("excluir"))
   document.getElementById("searchBox").addEventListener("input",()=>renderTable(apiCache))
 
