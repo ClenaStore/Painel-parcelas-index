@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Painel • Pré Aprovação</title>
+  <title>Painel • Conferência de Parcelas (F360)</title>
   <style>
     :root{
       --bg:#f9fafb; --card:#fff; --ink:#0f1724; --muted:#6b7280;
@@ -24,7 +24,6 @@
     .perfil{display:flex;align-items:center;gap:8px;margin-left:16px}
     .perfil img{width:45px;height:45px;border-radius:50%}
     .perfil span{font-size:13px;color:var(--ink);font-weight:500}
-    tr.fora td { background:#fff; } /* branco */
     .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
       padding:12px 16px;margin:12px;display:flex;flex-direction:column;flex:1;overflow:hidden}
     .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
@@ -91,10 +90,10 @@
 
   <!-- Cabeçalho -->
   <header>
-    <img src="https://static.wixstatic.com/media/d830b0_8cec50a98bbf4775814dbfa5386585e8~mv2.png" alt="Logo">
+    <img src="https://dummyimage.com/140x40/2563eb/ffffff&text=LOGO" alt="Logo">
     <div>
-      <h1>Painel de pré aprovação</h1>
-      <div class="small">Integração ao F360</div>
+      <h1>Painel • Conferência de Parcelas (F360)</h1>
+      <div class="small">Integração F360 + Google Sheets</div>
     </div>
     <div class="badge-top">Divergências: <span id="divCount">0</span></div>
     <div class="meta">Status: <span id="status">inicializando...</span></div>
@@ -182,10 +181,12 @@ const meioMenu=document.getElementById('meioMenu');
 const meioInput=document.getElementById('meioInput');
 const meioMulti=document.getElementById('meioMulti');
 
-const ENDPOINT_SHEET="https://script.google.com/macros/s/AKfycbwqAyJwI-dVnkMV07R-ynJEyNNcxhUnWqbNX6Wu6j5JyQ8aXTSsDeM8ml6KHHgn4_iNxA/exec";
+const ENDPOINT_SHEET="https://script.google.com/macros/s/AKfycbzIs72vKd3Wqt9QJv76eqRUUel1i7-tZIfNda6cFF57o12S0Ad4nGGBTHUkiSlsUZa5Mg/exec";
 
 let planilhaCache=[], apiCache=[];
 let isFetchingPlanilha=false;
+const flaggedIds=JSON.parse(localStorage.getItem("flaggedIds")||"[]");
+function saveFlags(){ localStorage.setItem("flaggedIds",JSON.stringify(flaggedIds)) }
 function setStatus(t){ statusEl.textContent=t }
 function showLoader(b){ loader.style.display=b?"flex":"none" }
 
@@ -233,18 +234,10 @@ function atualizarDivergenciasNaView(){
     const it=JSON.parse(tr.dataset.item||"null");
     if(!it) return;
     const check=verificarDivergencia(it);
-    tr.classList.remove("divergente","ok","fora");
-
-    if(check.tipo==="divergente"){
-      tr.classList.add("divergente");
-      divergentes++;
-    }
-    if(check.tipo==="fora"){
-      tr.classList.add("fora");
-    }
-    if(check.tipo==="ok"){
-      tr.classList.add("ok");
-    }
+    tr.classList.remove("divergente");
+    if(check.tipo==="divergente"){ tr.classList.add("divergente"); divergentes++; }
+    const id=String(it.ParcelaId);
+    if(flaggedIds.includes(id)) tr.classList.add("ok"); else tr.classList.remove("ok");
   });
   divCountEl.textContent=divergentes;
 }
@@ -331,12 +324,14 @@ function renderTable(apiResp){
     const tr=document.createElement("tr");
     tr.dataset.item=JSON.stringify(it);
 
+    // consistência com planilha
     const check=verificarDivergencia(it);
     if(check.tipo==="divergente"){ tr.classList.add("divergente"); divergentes++; }
     const id=String(it.ParcelaId);
+    if(flaggedIds.includes(id) && check.tipo==="ok") tr.classList.add("ok");
 
     tr.innerHTML=`
-      <td><input type="checkbox" class="chkParcela" data-id="${id}" ${check.tipo!=="fora"?"checked":""}></td>
+      <td><input type="checkbox" class="chkParcela" data-id="${id}" ${flaggedIds.includes(id)?"checked":""}></td>
       <td>${id}</td><td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td>
       <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</td>
       <td>${it.DadosDoTitulo?.Emissao||""}</td><td>${it.Vencimento||""}</td>
@@ -353,40 +348,49 @@ function renderTable(apiResp){
   tbody.appendChild(frag);
   divCountEl.textContent=divergentes;
 
+  // totais
   let txt=`Total: ${total.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}`;
   Object.keys(porModalidade).forEach(k=>{
     txt+=` • ${k}: ${porModalidade[k].toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}`;
   });
   totaisBox.textContent=txt;
 
-document.querySelectorAll(".chkParcela").forEach(chk=>{
-  chk.addEventListener("change",async ()=>{
-    const tr=chk.closest("tr");
-    const it=JSON.parse(tr.dataset.item||"{}");
-    const reg={
-      id:it.ParcelaId||"", empresa:it.DadosDoTitulo?.Empresa?.Nome||"",
-      fornecedor:it.DadosDoTitulo?.ClienteFornecedor?.Nome||"",
-      emissao:it.DadosDoTitulo?.Emissao||"", vencimento:it.Vencimento||"",
-      valor:it.ValorBruto||"", status:it.Status||"", conta:it.Conta||"",
-      meio:it.MeioDePagamento||"", tipoDoc:it.DadosDoTitulo?.TipoDeDocumento||"",
-      centroCusto:it.Rateio?.[0]?.CentroDeCusto||"", planoContas:it.Rateio?.[0]?.PlanoDeContas||"",
-      observacao:it.DadosDoTitulo?.Observacao||""
-    };
+  // listeners de seleção
+  document.querySelectorAll(".chkParcela").forEach(chk=>{
+    chk.addEventListener("change",async ()=>{
+      const id=String(chk.dataset.id);
+      const tr=chk.closest("tr");
+      const it=JSON.parse(tr.dataset.item||"{}");
+      const reg={
+        id:it.ParcelaId||"", empresa:it.DadosDoTitulo?.Empresa?.Nome||"",
+        fornecedor:it.DadosDoTitulo?.ClienteFornecedor?.Nome||"",
+        emissao:it.DadosDoTitulo?.Emissao||"", vencimento:it.Vencimento||"",
+        valor:it.ValorBruto||"", status:it.Status||"", conta:it.Conta||"",
+        meio:it.MeioDePagamento||"", tipoDoc:it.DadosDoTitulo?.TipoDeDocumento||"",
+        centroCusto:it.Rateio?.[0]?.CentroDeCusto||"", planoContas:it.Rateio?.[0]?.PlanoDeContas||"",
+        observacao:it.DadosDoTitulo?.Observacao||""
+      };
 
-    if(chk.checked){
-      await enviarParaPlanilha("conferir",[reg]);
-    }else{
-      await enviarParaPlanilha("excluir",[reg]);
-    }
-    carregarPlanilha();
+      if(chk.checked){
+        if(!flaggedIds.includes(id)) flaggedIds.push(id);
+        if(verificarDivergencia(it).tipo==="ok") tr.classList.add("ok");
+        saveFlags();
+        await enviarParaPlanilha("conferir",[reg]);
+      }else{
+        const i=flaggedIds.indexOf(id); if(i>=0) flaggedIds.splice(i,1);
+        tr.classList.remove("ok");
+        saveFlags();
+        await enviarParaPlanilha("excluir",[reg]);
+      }
+      carregarPlanilha();
+    });
   });
-});
-
 }
 
 /* ===== FILTROS ===== */
 function popularFiltros(apiResp){
   const items=(apiResp.Result&&apiResp.Result.Parcelas)||[];
+  // empresas
   const curEmpresa=empresaSelect.value;
   const empresas=[...new Set(items.map(it=>it.DadosDoTitulo?.Empresa?.Nome).filter(Boolean))].sort();
   empresaSelect.innerHTML='<option value="">-- Todas as empresas --</option>';
@@ -394,15 +398,21 @@ function popularFiltros(apiResp){
     const opt=document.createElement("option"); opt.value=e; opt.textContent=e; empresaSelect.appendChild(opt);
   });
   if(curEmpresa) empresaSelect.value=curEmpresa;
+  // status
+// status
+const curStatus = statusSelect.value || "Aberto";  // garante fallback em "Aberto"
+const statusUnicos=[...new Set(items.map(it=>it.Status).filter(Boolean))].sort();
+statusSelect.innerHTML='<option value="">-- Todos os status --</option>';
+statusUnicos.forEach(s=>{
+  const opt=document.createElement("option"); 
+  opt.value=s; 
+  opt.textContent=s; 
+  statusSelect.appendChild(opt);
+});
+// mantém a seleção ou força "Aberto" se não houver
+if(curStatus) statusSelect.value=curStatus;
 
-  const curStatus = statusSelect.value || "Aberto";
-  const statusUnicos=[...new Set(items.map(it=>it.Status).filter(Boolean))].sort();
-  statusSelect.innerHTML='<option value="">-- Todos os status --</option>';
-  statusUnicos.forEach(s=>{
-    const opt=document.createElement("option"); opt.value=s; opt.textContent=s; statusSelect.appendChild(opt);
-  });
-  if(curStatus) statusSelect.value=curStatus;
-
+  // meios
   const selAntes=getMeiosSelecionados();
   const meios=[...new Set(items.map(it=>it.MeioDePagamento).filter(Boolean))].sort();
   meioMenu.innerHTML="";
@@ -434,6 +444,7 @@ meioMenu.addEventListener("change",e=>{
   renderTable(apiCache);
 });
 
+// outros filtros
 empresaSelect.addEventListener("change",()=>renderTable(apiCache));
 statusSelect.addEventListener("change",()=>renderTable(apiCache));
 document.getElementById("tipoDatas").addEventListener("change",()=>renderTable(apiCache));
@@ -472,13 +483,16 @@ document.getElementById("btnConferido").addEventListener("click",async ()=>{
 
 const hoje = new Date();
 const cincoDiasAtras = new Date();
-cincoDiasAtras.setDate(hoje.getDate() - 3);
+cincoDiasAtras.setDate(hoje.getDate() - 1); // Quantidade de dias para trás do dia atual
 
 document.getElementById("inicio").value = cincoDiasAtras.toISOString().slice(0,10);
 document.getElementById("fim").value = hoje.toISOString().slice(0,10);
 
+
+// força status inicial = Aberto
 statusSelect.value="Aberto";
 
+// primeira carga
 carregarParcelas(true);
 setInterval(()=>carregarPlanilha(),5000);
 </script>
