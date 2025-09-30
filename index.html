@@ -147,18 +147,6 @@
         <tbody></tbody>
       </table>
     </div>
-<div id="agenteIA" style="margin:16px 12px;padding:12px;background:#f3f4f6;
-     border-radius:var(--radius);box-shadow:var(--shadow)">
-  <h3 style="margin-bottom:8px;font-size:14px;font-weight:600;color:var(--ink)">
-    Agente Financeiro (F360)
-  </h3>
-  <input id="question" placeholder="Digite sua pergunta..." 
-         style="width:70%;padding:8px;border-radius:8px;border:1px solid #d1d5db" />
-  <button class="btn" onclick="ask()">Enviar</button>
-  <div id="answer" style="margin-top:10px;font-size:13px;color:var(--ink)"></div>
-</div>
-
-    
   </div>
 
   <!-- Rodapé -->
@@ -576,29 +564,6 @@ setInterval(async ()=>{
   await carregarPlanilha();
   atualizarDivergenciasNaView();
 }, 5000);
-
-  /* ===== AGENTE IA ===== */
-async function ask() {
-  const question = document.getElementById("question").value;
-  if(!question.trim()) return;
-
-  const f360Data = (apiCache?.Result?.Parcelas) || []; // usa os dados já carregados do F360
-
-  document.getElementById("answer").innerText = "⌛ Processando...";
-
-  try {
-    const res = await fetch("/api/ask", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, f360Data })
-    });
-    const data = await res.json();
-    document.getElementById("answer").innerText = data.answer;
-  } catch (err) {
-    console.error(err);
-    document.getElementById("answer").innerText = "❌ Erro ao consultar o agente.";
-  }
-}
 
 </script>
 </body>
