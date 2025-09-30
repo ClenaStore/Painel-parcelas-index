@@ -18,11 +18,19 @@
     h1{margin:0;font-size:18px;font-weight:600}
     .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
       padding:16px;margin:16px}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    input,select,button{padding:8px 10px;border-radius:8px;border:1px solid #e6edf3;font-size:14px}
+    button{cursor:pointer;transition:.2s}
+    button:hover{opacity:.9;transform:scale(1.02)}
+    .btn{background:var(--accent);color:#fff;border:none}
+    .btn-danger{background:var(--danger);color:#fff;border:none}
     table{width:100%;border-collapse:collapse}
     th{background:#fafcff;position:sticky;top:0;z-index:2;padding:8px;font-size:13px;text-align:left;text-transform:uppercase}
     td{padding:8px;border-bottom:1px solid #f1f5f9;font-size:13px;white-space:nowrap}
     tr.ok{background:#d1fae5}
     tr.divergente{background:#fff3cd}
+    tr.ok:hover{background:#bbf7d0 !important}
+    tr.divergente:hover{background:#fde68a !important}
     .chkParcela:checked {accent-color: var(--ok);}
     footer{padding:12px 16px;font-size:13px;color:var(--muted);display:flex;justify-content:space-between}
 
@@ -62,6 +70,22 @@
   <div id="loader"><div class="spinner"></div>Carregando dados...</div>
 
   <div class="card">
+    <div class="controls">
+      <select id="empresaSelect"><option value="">-- Todas as empresas --</option></select>
+      <input type="date" id="inicio" />
+      <input type="date" id="fim" />
+      <select id="tipoDatas"><option value="Emissao">Emissão</option><option value="Vencimento">Vencimento</option></select>
+      <select id="statusSelect">
+        <option value="">-- Todos os status --</option>
+        <option value="Aberto">Aberto</option>
+        <option value="Pago">Pago</option>
+        <option value="Cancelado">Cancelado</option>
+      </select>
+      <input type="text" id="searchBox" placeholder="🔍 Buscar fornecedor..." />
+      <button class="btn" id="btnLoad">Carregar</button>
+      <button class="btn" id="btnConferido">Confirmar conferência</button>
+    </div>
+
     <div id="tableWrap">
       <table id="parcelasTable">
         <thead>
@@ -94,6 +118,8 @@ const statusEl=document.getElementById('status')
 const lastUpdateEl=document.getElementById('lastUpdate')
 const loader=document.getElementById('loader')
 const countEl=document.getElementById('count')
+const empresaSelect=document.getElementById('empresaSelect')
+const statusSelect=document.getElementById('statusSelect')
 const popup=document.getElementById('popup')
 const popupContent=document.getElementById('popupContent')
 const btnAtualizar=document.getElementById('btnAtualizar')
@@ -110,7 +136,7 @@ function setStatus(t){statusEl.textContent=t}
 
 // Normalizações
 function simplifyText(s){return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().trim()}
-function normalizeMoney(v){if(v==null||v==="")return null;const s=String(v).replace(/\s/g,"").replace(/^R\$\s*/i,"").replace(/\./g,"").replace(/,/g,".");const n=parseFloat(s);return isNaN(n)?null:Number(n.toFixed(2))}
+function normalizeMoney(v){if(v==null||v==="")return null;const s=String(v).replace(/\s/g,"").replace(/^R\$\\s*/i,"").replace(/\\./g,"").replace(/,/g,".");const n=parseFloat(s);return isNaN(n)?null:Number(n.toFixed(2))}
 
 // Planilha
 async function carregarPlanilha(){try{const r=await fetch(ENDPOINT_SHEET);const j=await r.json();planilhaCache=j.data||[]}catch(e){planilhaCache=[]}}
@@ -130,17 +156,29 @@ function renderTable(apiResp){
   const tbody=document.querySelector("#parcelasTable tbody")
   tbody.innerHTML=""
   let items=(apiResp.Result&&apiResp.Result.Parcelas)||[]
+
+  // filtro empresa
+  if(empresaSelect.value) items=items.filter(it=>(it.DadosDoTitulo?.Empresa?.Nome||"")===empresaSelect.value)
+  // filtro status
+  if(statusSelect.value) items=items.filter(it=>(it.Status||"").includes(statusSelect.value))
+  // filtro busca
+  const search=document.getElementById("searchBox").value.toLowerCase()
+  if(search) items=items.filter(it=>{
+    const t=(it.DadosDoTitulo?.ClienteFornecedor?.Nome||"")+" "+(it.DadosDoTitulo?.Empresa?.Nome||"")+" "+(it.DadosDoTitulo?.Observacao||"")
+    return t.toLowerCase().includes(search)
+  })
+
   countEl.textContent=items.length
   if(!items.length){tbody.innerHTML="<tr><td colspan=15>Nenhuma parcela</td></tr>";return}
 
   for(const it of items){
     const tr=document.createElement("tr")
     const check=verificarDivergencia(it)
+    let avisoCell=""
     if(check.tipo==="ok") tr.classList.add("ok")
-    if(check.tipo==="divergente"){tr.classList.add("divergente")
-      tr.innerHTML+=`<td><span class="pulse-dot" onclick='abrirPopup(${JSON.stringify(JSON.stringify(it))})'></span></td>`
-    }else{
-      tr.innerHTML+=`<td></td>`
+    if(check.tipo==="divergente"){
+      tr.classList.add("divergente")
+      avisoCell=`<span class="pulse-dot" onclick='abrirPopup(${JSON.stringify(JSON.stringify(it))})'></span>`
     }
     tr.innerHTML=`
       <td><input type="checkbox"></td>
@@ -150,7 +188,8 @@ function renderTable(apiResp){
       <td>${it.ValorBruto}</td><td>${it.Status||""}</td><td>${it.Conta||""}</td>
       <td>${it.MeioDePagamento||""}</td><td>${it.DadosDoTitulo?.TipoDeDocumento||""}</td>
       <td>${it.Rateio?.[0]?.CentroDeCusto||""}</td><td>${it.Rateio?.[0]?.PlanoDeContas||""}</td>
-      <td>${it.DadosDoTitulo?.Observacao||""}</td>` + tr.innerHTML
+      <td>${it.DadosDoTitulo?.Observacao||""}</td>
+      <td>${avisoCell}</td>`
     tbody.appendChild(tr)
   }
 }
@@ -194,7 +233,8 @@ async function carregarParcelas(primeiraVez=true){
   setStatus("atualizando...")
   await carregarPlanilha()
   try{
-    const r=await fetch('/api/parcelas')
+    const params=new URLSearchParams({pagina:1,tipo:"Despesa",inicio:document.getElementById('inicio').value,fim:document.getElementById('fim').value,tipoDatas:document.getElementById('tipoDatas').value})
+    const r=await fetch('/api/parcelas?'+params.toString())
     const data=await r.json();apiCache=data
     renderTable(data)
     lastUpdateEl.textContent=new Date().toLocaleString()
@@ -203,9 +243,18 @@ async function carregarParcelas(primeiraVez=true){
   if(primeiraVez) showLoader(false)
 }
 
+// eventos globais
+document.getElementById("btnLoad").addEventListener("click",()=>carregarParcelas(false))
+document.getElementById("btnConferido").addEventListener("click",()=>alert("Conferência salva (mock)!"))
+document.getElementById("searchBox").addEventListener("input",()=>renderTable(apiCache))
+
 // inicia
+const hoje=new Date().toISOString().slice(0,10)
+document.getElementById("inicio").value=hoje
+document.getElementById("fim").value=hoje
+
 carregarParcelas(true)
-setInterval(()=>carregarParcelas(false),60000) // atualiza a cada 60s
+setInterval(()=>carregarParcelas(false),60000)
 </script>
 </body>
 </html>
