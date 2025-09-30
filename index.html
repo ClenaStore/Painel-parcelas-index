@@ -24,6 +24,7 @@
     .perfil{display:flex;align-items:center;gap:8px;margin-left:16px}
     .perfil img{width:45px;height:45px;border-radius:50%}
     .perfil span{font-size:13px;color:var(--ink);font-weight:500}
+    tr.fora td { background:#fff; } /* branco */
     .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
       padding:12px 16px;margin:12px;display:flex;flex-direction:column;flex:1;overflow:hidden}
     .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
@@ -181,7 +182,7 @@ const meioMenu=document.getElementById('meioMenu');
 const meioInput=document.getElementById('meioInput');
 const meioMulti=document.getElementById('meioMulti');
 
-const ENDPOINT_SHEET="https://script.google.com/macros/s/AKfycbzIs72vKd3Wqt9QJv76eqRUUel1i7-tZIfNda6cFF57o12S0Ad4nGGBTHUkiSlsUZa5Mg/exec";
+const ENDPOINT_SHEET="https://script.google.com/macros/s/AKfycbwYIWxJ2StCreHbMdwqFxxNO05n73-bH2oBf-kGv_vooByFpl4APFi3eYlMJHc8lb30eQ/exec";
 
 let planilhaCache=[], apiCache=[];
 let isFetchingPlanilha=false;
@@ -234,10 +235,18 @@ function atualizarDivergenciasNaView(){
     const it=JSON.parse(tr.dataset.item||"null");
     if(!it) return;
     const check=verificarDivergencia(it);
-    tr.classList.remove("divergente");
-    if(check.tipo==="divergente"){ tr.classList.add("divergente"); divergentes++; }
-    const id=String(it.ParcelaId);
-    if(flaggedIds.includes(id)) tr.classList.add("ok"); else tr.classList.remove("ok");
+    tr.classList.remove("divergente","ok","fora");
+
+    if(check.tipo==="divergente"){
+      tr.classList.add("divergente");
+      divergentes++;
+    }
+    if(check.tipo==="fora"){
+      tr.classList.add("fora");
+    }
+    if(check.tipo==="ok"){
+      tr.classList.add("ok");
+    }
   });
   divCountEl.textContent=divergentes;
 }
@@ -324,7 +333,6 @@ function renderTable(apiResp){
     const tr=document.createElement("tr");
     tr.dataset.item=JSON.stringify(it);
 
-    // consistência com planilha
     const check=verificarDivergencia(it);
     if(check.tipo==="divergente"){ tr.classList.add("divergente"); divergentes++; }
     const id=String(it.ParcelaId);
@@ -348,14 +356,12 @@ function renderTable(apiResp){
   tbody.appendChild(frag);
   divCountEl.textContent=divergentes;
 
-  // totais
   let txt=`Total: ${total.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}`;
   Object.keys(porModalidade).forEach(k=>{
     txt+=` • ${k}: ${porModalidade[k].toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}`;
   });
   totaisBox.textContent=txt;
 
-  // listeners de seleção
   document.querySelectorAll(".chkParcela").forEach(chk=>{
     chk.addEventListener("change",async ()=>{
       const id=String(chk.dataset.id);
@@ -390,7 +396,6 @@ function renderTable(apiResp){
 /* ===== FILTROS ===== */
 function popularFiltros(apiResp){
   const items=(apiResp.Result&&apiResp.Result.Parcelas)||[];
-  // empresas
   const curEmpresa=empresaSelect.value;
   const empresas=[...new Set(items.map(it=>it.DadosDoTitulo?.Empresa?.Nome).filter(Boolean))].sort();
   empresaSelect.innerHTML='<option value="">-- Todas as empresas --</option>';
@@ -398,21 +403,15 @@ function popularFiltros(apiResp){
     const opt=document.createElement("option"); opt.value=e; opt.textContent=e; empresaSelect.appendChild(opt);
   });
   if(curEmpresa) empresaSelect.value=curEmpresa;
-  // status
-// status
-const curStatus = statusSelect.value || "Aberto";  // garante fallback em "Aberto"
-const statusUnicos=[...new Set(items.map(it=>it.Status).filter(Boolean))].sort();
-statusSelect.innerHTML='<option value="">-- Todos os status --</option>';
-statusUnicos.forEach(s=>{
-  const opt=document.createElement("option"); 
-  opt.value=s; 
-  opt.textContent=s; 
-  statusSelect.appendChild(opt);
-});
-// mantém a seleção ou força "Aberto" se não houver
-if(curStatus) statusSelect.value=curStatus;
 
-  // meios
+  const curStatus = statusSelect.value || "Aberto";
+  const statusUnicos=[...new Set(items.map(it=>it.Status).filter(Boolean))].sort();
+  statusSelect.innerHTML='<option value="">-- Todos os status --</option>';
+  statusUnicos.forEach(s=>{
+    const opt=document.createElement("option"); opt.value=s; opt.textContent=s; statusSelect.appendChild(opt);
+  });
+  if(curStatus) statusSelect.value=curStatus;
+
   const selAntes=getMeiosSelecionados();
   const meios=[...new Set(items.map(it=>it.MeioDePagamento).filter(Boolean))].sort();
   meioMenu.innerHTML="";
@@ -444,7 +443,6 @@ meioMenu.addEventListener("change",e=>{
   renderTable(apiCache);
 });
 
-// outros filtros
 empresaSelect.addEventListener("change",()=>renderTable(apiCache));
 statusSelect.addEventListener("change",()=>renderTable(apiCache));
 document.getElementById("tipoDatas").addEventListener("change",()=>renderTable(apiCache));
@@ -483,16 +481,13 @@ document.getElementById("btnConferido").addEventListener("click",async ()=>{
 
 const hoje = new Date();
 const cincoDiasAtras = new Date();
-cincoDiasAtras.setDate(hoje.getDate() - 3); // Quantidade de dias para trás do dia atual
+cincoDiasAtras.setDate(hoje.getDate() - 3);
 
 document.getElementById("inicio").value = cincoDiasAtras.toISOString().slice(0,10);
 document.getElementById("fim").value = hoje.toISOString().slice(0,10);
 
-
-// força status inicial = Aberto
 statusSelect.value="Aberto";
 
-// primeira carga
 carregarParcelas(true);
 setInterval(()=>carregarPlanilha(),5000);
 </script>
