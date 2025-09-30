@@ -105,211 +105,204 @@
     <div>Última atualização: <span id="lastUpdate">—</span></div>
   </footer>
 
-  <script>
-    const statusEl=document.getElementById('status')
-    const lastUpdateEl=document.getElementById('lastUpdate')
-    const empresaSelect=document.getElementById('empresaSelect')
-    const statusSelect=document.getElementById('statusSelect')
-    const loader=document.getElementById('loader')
+ <script>
+  const statusEl=document.getElementById('status')
+  const lastUpdateEl=document.getElementById('lastUpdate')
+  const empresaSelect=document.getElementById('empresaSelect')
+  const statusSelect=document.getElementById('statusSelect')
+  const loader=document.getElementById('loader')
 
-    const ENDPOINT_SHEET="https://script.google.com/macros/s/AKfycbwxsDbA0MBPE1JFJySr9LMj4U_cVzlBQFvmiwcXWG8zRJwrnN2xyUxqycDI0Bsbybl1dA/exec" // troque pela URL publicada do GAS
+  const ENDPOINT_SHEET="https://script.google.com/macros/s/AKfycbwxsDbA0MBPE1JFJySr9LMj4U_cVzlBQFvmiwcXWG8zRJwrnN2xyUxqycDI0Bsbybl1dA/exec"
 
-    let planilhaCache=[]
-    let apiCache=[]
+  let planilhaCache=[]
+  let apiCache=[]
+  let primeiraVez=true
 
-    // === EQUIVALÊNCIAS APRENDIDAS (persistem no navegador) ===
-    const equivalences = JSON.parse(localStorage.getItem('equivalences')||'{"meio":{},"fornecedor":{}}')
-    function saveEquivalences(){ localStorage.setItem('equivalences', JSON.stringify(equivalences)) }
+  // === EQUIVALÊNCIAS ===
+  const equivalences = JSON.parse(localStorage.getItem('equivalences')||'{"meio":{},"fornecedor":{}}')
+  function saveEquivalences(){ localStorage.setItem('equivalences', JSON.stringify(equivalences)) }
 
-    // === HELPERS DE NORMALIZAÇÃO ===
-    function setStatus(t){statusEl.textContent=t}
-    function showLoader(b){loader.style.display=b?"flex":"none"}
+  function setStatus(t){statusEl.textContent=t}
+  function showLoader(b){loader.style.display=b?"flex":"none"}
 
-    function simplifyText(s){
-      if(s==null) return ''
-      return String(s)
-        .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // sem acentos
-        .toUpperCase().replace(/\s+/g,' ').trim()
+  function simplifyText(s){
+    if(s==null) return ''
+    return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s+/g,' ').trim()
+  }
+  function normalizeMeio(s){
+    const t = simplifyText(s)
+    const map = {
+      'PIX':'PIX',
+      'DEBITO AUTOMATICO':'DEBITO AUTOMATICO',
+      'DEBITO AUTOMATICO SICREDI':'DEBITO AUTOMATICO',
+      'BOLETO BANCARIO':'BOLETO','BOLETO':'BOLETO',
+      'TED':'TRANSFERENCIA','DOC':'TRANSFERENCIA','TRANSFERENCIA':'TRANSFERENCIA',
+      'CARTAO DE CREDITO':'CARTAO CREDITO','CREDITO':'CARTAO CREDITO','CARTAO CREDITO':'CARTAO CREDITO',
+      'CARTAO DEBITO':'CARTAO DEBITO','DEBITO':'CARTAO DEBITO'
     }
-    function normalizeMeio(s){
-      const t = simplifyText(s)
-      const map = {
-        'PIX':'PIX',
-        'DEBITO AUTOMATICO':'DEBITO AUTOMATICO',
-        'DEBITO AUTOMATICO SICREDI':'DEBITO AUTOMATICO',
-        'BOLETO BANCARIO':'BOLETO',
-        'BOLETO':'BOLETO',
-        'TED':'TRANSFERENCIA','DOC':'TRANSFERENCIA','TRANSFERENCIA':'TRANSFERENCIA',
-        'CARTAO DE CREDITO':'CARTAO CREDITO','CREDITO':'CARTAO CREDITO','CARTAO CREDITO':'CARTAO CREDITO',
-        'CARTAO DEBITO':'CARTAO DEBITO','DEBITO':'CARTAO DEBITO'
+    const base = map[t] || t
+    return equivalences.meio[base] || base
+  }
+  function normalizeFornecedor(s){
+    const base = simplifyText(s)
+    return equivalences.fornecedor[base] || base
+  }
+  function normalizeMoney(v){
+    if(v==null || v==='') return null
+    const s = String(v).replace(/\s/g,'').replace(/^R\$\s*/i,'').replace(/\./g,'').replace(/,/g,'.')
+    const n = parseFloat(s)
+    if (isNaN(n)) return null
+    return Number(n.toFixed(2))
+  }
+
+  // === CARGA DA PLANILHA (sempre atualiza) ===
+  async function carregarPlanilha(){
+    try{
+      const r=await fetch(ENDPOINT_SHEET)
+      const j=await r.json()
+      planilhaCache=j.data||[]
+    }catch(e){console.error("Erro planilha",e);planilhaCache=[]}
+  }
+
+  // === REGRA DE DIVERGÊNCIA ===
+  function verificarDivergencia(it){
+    const plan=planilhaCache.find(p=>p.ID==it.ParcelaId)
+    if(!plan) return {tipo:"fora"} 
+    const valorPlan=normalizeMoney(plan.Valor)
+    const valorSys=normalizeMoney(it.ValorBruto)
+    const fornPlan=normalizeFornecedor(plan.Fornecedor)
+    const fornSys=normalizeFornecedor(it.DadosDoTitulo?.ClienteFornecedor?.Nome)
+    const meioPlan=normalizeMeio(plan["Meio Pagamento"])
+    const meioSys=normalizeMeio(it.MeioDePagamento)
+    const diffs=[]
+    if(valorPlan!==valorSys) diffs.push("Valor")
+    if(fornPlan!==fornSys) diffs.push("Fornecedor")
+    if(meioPlan!==meioSys) diffs.push("Meio Pagamento")
+    return diffs.length?{tipo:"divergente",campos:diffs}:{tipo:"ok"}
+  }
+
+  // === CARGA DO F360 ===
+  async function carregarParcelas(mostrarOverlay=false){
+    await carregarPlanilha()
+    setStatus("carregando...")
+    if(mostrarOverlay) showLoader(true)
+
+    const inicio=document.getElementById('inicio').value
+    const fim=document.getElementById('fim').value
+    const tipoDatas=document.getElementById('tipoDatas').value
+    const empresa=empresaSelect.value
+    const statusFiltro=statusSelect.value
+    const params=new URLSearchParams({pagina:1,tipo:"Despesa",inicio,fim,tipoDatas})
+    if(empresa)params.append("empresa",empresa)
+    if(statusFiltro)params.append("status",statusFiltro)
+
+    try{
+      const r=await fetch('/api/parcelas?'+params.toString())
+      const data=await r.json();apiCache=data
+      renderTable(data);popularEmpresas(data)
+      setStatus("ok");lastUpdateEl.textContent=new Date().toLocaleString()
+    }catch(e){
+      console.error(e);setStatus("erro fetch")
+    }
+    finally{
+      if(mostrarOverlay) showLoader(false)
+      primeiraVez=false
+    }
+  }
+
+  function renderTable(apiResp){
+    const tbody=document.querySelector("#parcelasTable tbody")
+    tbody.innerHTML=""
+    let items=(apiResp.Result&&apiResp.Result.Parcelas)||[]
+    const search=document.getElementById("searchBox").value.toLowerCase()
+    if(search) items=items.filter(it=>(it.DadosDoTitulo?.ClienteFornecedor?.Nome||"").toLowerCase().includes(search))
+    if(!items.length){tbody.innerHTML="<tr><td colspan=14>Nenhuma parcela</td></tr>";return}
+    for(const it of items){
+      const tr=document.createElement("tr")
+      const check=verificarDivergencia(it)
+      if(check.tipo==="ok") tr.classList.add("ok")
+      if(check.tipo==="divergente"){ tr.classList.add("divergente"); tr.title="Diferenças: "+check.campos.join(", ") }
+      const dados=JSON.stringify({
+        id:it.ParcelaId||"",empresa:it.DadosDoTitulo?.Empresa?.Nome||"",
+        fornecedor:it.DadosDoTitulo?.ClienteFornecedor?.Nome||"",
+        emissao:it.DadosDoTitulo?.Emissao||"",vencimento:it.Vencimento||"",
+        valor:it.ValorBruto||"",status:it.Status||"",conta:it.Conta||"",
+        meio:it.MeioDePagamento||"",tipoDoc:it.DadosDoTitulo?.TipoDeDocumento||"",
+        centroCusto:it.Rateio?.[0]?.CentroDeCusto||"",planoContas:it.Rateio?.[0]?.PlanoDeContas||"",
+        observacao:it.DadosDoTitulo?.Observacao||""
+      })
+      let btnReconferir=""
+      if(check.tipo==="divergente"){
+        btnReconferir=`<span class="badge">Diferença</span>
+          <button class="btn-inline" style="background:var(--warn);color:#fff"
+            onclick='reconferirAprendendo(${dados})'>Reconferir</button>`
       }
-      const base = map[t] || t
-      // aplica equivalência aprendida (se houver)
-      return equivalences.meio[base] || base
+      tr.innerHTML=`
+        <td><input type="checkbox" class="chkParcela" data-json='${dados}'> ${btnReconferir}</td>
+        <td>${it.ParcelaId||""}</td>
+        <td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td>
+        <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</td>
+        <td>${it.DadosDoTitulo?.Emissao||""}</td>
+        <td>${it.Vencimento||""}</td>
+        <td>${it.ValorBruto?.toLocaleString?.("pt-BR",{style:"currency",currency:"BRL"})||it.ValorBruto||""}</td>
+        <td>${it.Status||""}</td>
+        <td>${it.Conta||""}</td>
+        <td>${it.MeioDePagamento||""}</td>
+        <td>${it.DadosDoTitulo?.TipoDeDocumento||""}</td>
+        <td>${it.Rateio?.[0]?.CentroDeCusto||""}</td>
+        <td>${it.Rateio?.[0]?.PlanoDeContas||""}</td>
+        <td>${it.DadosDoTitulo?.Observacao||""}</td>`
+      tbody.appendChild(tr)
     }
-    function normalizeFornecedor(s){
-      const base = simplifyText(s)
-      return equivalences.fornecedor[base] || base
+  }
+
+  function popularEmpresas(apiResp){
+    const items=(apiResp.Result&&apiResp.Result.Parcelas)||[]
+    const empresas=[...new Set(items.map(it=>it.DadosDoTitulo?.Empresa?.Nome).filter(Boolean))]
+    empresaSelect.innerHTML='<option value="">-- Todas as empresas --</option>'
+    empresas.forEach(e=>{const opt=document.createElement("option");opt.value=e;opt.textContent=e;empresaSelect.appendChild(opt)})
+  }
+
+  async function reconferirAprendendo(reg){
+    const existente = planilhaCache.find(p=>p.ID==reg.id)
+    if (existente){
+      const planFornecedor = normalizeFornecedor(existente.Fornecedor)
+      const sysFornecedor  = normalizeFornecedor(reg.fornecedor)
+      if (planFornecedor !== sysFornecedor) { equivalences.fornecedor[planFornecedor] = sysFornecedor }
+      const planMeio = normalizeMeio(existente["Meio Pagamento"])
+      const sysMeio  = normalizeMeio(reg.meio)
+      if (planMeio !== sysMeio) { equivalences.meio[planMeio] = sysMeio }
+      saveEquivalences()
     }
-    function normalizeMoney(v){
-      if(v==null || v==='') return null
-      const s = String(v).replace(/\s/g,'').replace(/^R\$\s*/i,'').replace(/\./g,'').replace(/,/g,'.')
-      const n = parseFloat(s)
-      if (isNaN(n)) return null
-      return Number(n.toFixed(2))
-    }
+    await enviarParaPlanilha("reconferir",[reg])
+  }
 
-    // === CARGA DA PLANILHA ===
-    async function carregarPlanilha(){
-      try{
-        const r=await fetch(ENDPOINT_SHEET)
-        const j=await r.json()
-        planilhaCache=j.data||[]
-      }catch(e){console.error("Erro planilha",e);planilhaCache=[]}
-    }
+  async function enviarParaPlanilha(tipo,registrosDiretos){
+    let selecionados=registrosDiretos||[...document.querySelectorAll(".chkParcela:checked")].map(chk=>JSON.parse(chk.dataset.json))
+    if(!selecionados.length){alert("Selecione ao menos uma parcela!");return}
+    let body={acao:tipo,registros:selecionados}
+    try{
+      const r=await fetch(ENDPOINT_SHEET,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)})
+      const resp=await r.json()
+      alert((resp.success?"OK: ":"Erro: ")+JSON.stringify(resp))
+      await carregarParcelas(false)
+    }catch(e){alert("Erro GAS");console.error(e)}
+  }
 
-    // === REGRA DE DIVERGÊNCIA (somente Valor, Fornecedor, Meio) ===
-    function verificarDivergencia(it){
-      const plan=planilhaCache.find(p=>p.ID==it.ParcelaId)
-      if(!plan) return {tipo:"fora"} // fora da planilha => branco
+  document.getElementById("btnLoad").addEventListener("click",()=>carregarParcelas(true))
+  document.getElementById("btnConferido").addEventListener("click",()=>enviarParaPlanilha("conferir"))
+  document.getElementById("btnExcluir").addEventListener("click",()=>enviarParaPlanilha("excluir"))
+  document.getElementById("searchBox").addEventListener("input",()=>renderTable(apiCache))
 
-      const valorPlan = normalizeMoney(plan.Valor)
-      const valorSys  = normalizeMoney(it.ValorBruto)
+  const hoje=new Date().toISOString().slice(0,10)
+  document.getElementById("inicio").value=hoje
+  document.getElementById("fim").value=hoje
 
-      const fornPlan  = normalizeFornecedor(plan.Fornecedor)
-      const fornSys   = normalizeFornecedor(it.DadosDoTitulo?.ClienteFornecedor?.Nome)
+  // Primeira carga com overlay
+  carregarParcelas(true)
+  // Atualizações internas a cada 10s (sem overlay)
+  setInterval(()=>carregarParcelas(false),10000)
+</script>
 
-      const meioPlan  = normalizeMeio(plan["Meio Pagamento"])
-      const meioSys   = normalizeMeio(it.MeioDePagamento)
-
-      const diffs=[]
-      if(valorPlan!==valorSys) diffs.push("Valor")
-      if(fornPlan!==fornSys)   diffs.push("Fornecedor")
-      if(meioPlan!==meioSys)   diffs.push("Meio Pagamento")
-
-      return diffs.length?{tipo:"divergente",campos:diffs}:{tipo:"ok"}
-    }
-
-    // === CARGA DO F360 ===
-    async function carregarParcelas(){
-      await carregarPlanilha()
-      setStatus("carregando...");showLoader(true)
-      const inicio=document.getElementById('inicio').value
-      const fim=document.getElementById('fim').value
-      const tipoDatas=document.getElementById('tipoDatas').value
-      const empresa=empresaSelect.value
-      const statusFiltro=statusSelect.value
-      const params=new URLSearchParams({pagina:1,tipo:"Despesa",inicio,fim,tipoDatas})
-      if(empresa)params.append("empresa",empresa)
-      if(statusFiltro)params.append("status",statusFiltro)
-      try{
-        const r=await fetch('/api/parcelas?'+params.toString())
-        const data=await r.json();apiCache=data
-        renderTable(data);popularEmpresas(data)
-        setStatus("ok");lastUpdateEl.textContent=new Date().toLocaleString()
-      }catch(e){console.error(e);setStatus("erro fetch")}
-      finally{showLoader(false)}
-    }
-
-    function renderTable(apiResp){
-      const tbody=document.querySelector("#parcelasTable tbody")
-      tbody.innerHTML=""
-      let items=(apiResp.Result&&apiResp.Result.Parcelas)||[]
-      const search=document.getElementById("searchBox").value.toLowerCase()
-      if(search) items=items.filter(it=>(it.DadosDoTitulo?.ClienteFornecedor?.Nome||"").toLowerCase().includes(search))
-      if(!items.length){tbody.innerHTML="<tr><td colspan=14>Nenhuma parcela</td></tr>";return}
-
-      for(const it of items){
-        const tr=document.createElement("tr")
-        const check=verificarDivergencia(it)
-        if(check.tipo==="ok") tr.classList.add("ok")
-        if(check.tipo==="divergente"){ tr.classList.add("divergente"); tr.title="Diferenças: "+check.campos.join(", ") }
-
-        const dados=JSON.stringify({
-          id:it.ParcelaId||"",empresa:it.DadosDoTitulo?.Empresa?.Nome||"",
-          fornecedor:it.DadosDoTitulo?.ClienteFornecedor?.Nome||"",
-          emissao:it.DadosDoTitulo?.Emissao||"",vencimento:it.Vencimento||"",
-          valor:it.ValorBruto||"",status:it.Status||"",conta:it.Conta||"",
-          meio:it.MeioDePagamento||"",tipoDoc:it.DadosDoTitulo?.TipoDeDocumento||"",
-          centroCusto:it.Rateio?.[0]?.CentroDeCusto||"",planoContas:it.Rateio?.[0]?.PlanoDeContas||"",
-          observacao:it.DadosDoTitulo?.Observacao||""
-        })
-
-        let btnReconferir=""
-        if(check.tipo==="divergente"){
-          btnReconferir=`<span class="badge">Diferença</span>
-            <button class="btn-inline" style="background:var(--warn);color:#fff"
-              onclick='reconferirAprendendo(${dados})'>Reconferir</button>`
-        }
-
-        tr.innerHTML=`
-          <td><input type="checkbox" class="chkParcela" data-json='${dados}'> ${btnReconferir}</td>
-          <td>${it.ParcelaId||""}</td>
-          <td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td>
-          <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</td>
-          <td>${it.DadosDoTitulo?.Emissao||""}</td>
-          <td>${it.Vencimento||""}</td>
-          <td>${it.ValorBruto?.toLocaleString?.("pt-BR",{style:"currency",currency:"BRL"})||it.ValorBruto||""}</td>
-          <td>${it.Status||""}</td>
-          <td>${it.Conta||""}</td>
-          <td>${it.MeioDePagamento||""}</td>
-          <td>${it.DadosDoTitulo?.TipoDeDocumento||""}</td>
-          <td>${it.Rateio?.[0]?.CentroDeCusto||""}</td>
-          <td>${it.Rateio?.[0]?.PlanoDeContas||""}</td>
-          <td>${it.DadosDoTitulo?.Observacao||""}</td>`
-        tbody.appendChild(tr)
-      }
-    }
-
-    function popularEmpresas(apiResp){
-      const items=(apiResp.Result&&apiResp.Result.Parcelas)||[]
-      const empresas=[...new Set(items.map(it=>it.DadosDoTitulo?.Empresa?.Nome).filter(Boolean))]
-      empresaSelect.innerHTML='<option value="">-- Todas as empresas --</option>'
-      empresas.forEach(e=>{const opt=document.createElement("option");opt.value=e;opt.textContent=e;empresaSelect.appendChild(opt)})
-    }
-
-    // Reconferir que "aprende" equivalências (fornecedor/meio) e atualiza a planilha
-    async function reconferirAprendendo(reg){
-      // aprende equivalências com o que já está na planilha (se existirem)
-      const existente = planilhaCache.find(p=>p.ID==reg.id)
-      if (existente){
-        const planFornecedor = normalizeFornecedor(existente.Fornecedor)
-        const sysFornecedor  = normalizeFornecedor(reg.fornecedor)
-        if (planFornecedor !== sysFornecedor) { equivalences.fornecedor[planFornecedor] = sysFornecedor }
-
-        const planMeio = normalizeMeio(existente["Meio Pagamento"])
-        const sysMeio  = normalizeMeio(reg.meio)
-        if (planMeio !== sysMeio) { equivalences.meio[planMeio] = sysMeio }
-
-        saveEquivalences()
-      }
-      await enviarParaPlanilha("reconferir",[reg])
-    }
-
-    async function enviarParaPlanilha(tipo,registrosDiretos){
-      let selecionados=registrosDiretos||[...document.querySelectorAll(".chkParcela:checked")].map(chk=>JSON.parse(chk.dataset.json))
-      if(!selecionados.length){alert("Selecione ao menos uma parcela!");return}
-      let body={acao:tipo,registros:selecionados}
-      try{
-        showLoader(true)
-        const r=await fetch(ENDPOINT_SHEET,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)})
-        const resp=await r.json()
-        alert((resp.success?"OK: ":"Erro: ")+JSON.stringify(resp))
-        await carregarParcelas()
-      }catch(e){alert("Erro GAS");console.error(e)}
-      finally{showLoader(false)}
-    }
-
-    document.getElementById("btnLoad").addEventListener("click",carregarParcelas)
-    document.getElementById("btnConferido").addEventListener("click",()=>enviarParaPlanilha("conferir"))
-    document.getElementById("btnExcluir").addEventListener("click",()=>enviarParaPlanilha("excluir"))
-    document.getElementById("searchBox").addEventListener("input",()=>renderTable(apiCache))
-
-    const hoje=new Date().toISOString().slice(0,10)
-    document.getElementById("inicio").value=hoje
-    document.getElementById("fim").value=hoje
-        // Atualiza a planilha a cada 10 segundos
-    setInterval(carregarParcelas, 10000)
-  </script>
 </body>
 </html>
