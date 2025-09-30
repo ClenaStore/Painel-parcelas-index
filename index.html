@@ -236,10 +236,9 @@ function renderTable(apiResp){
       observacao:it.DadosDoTitulo?.Observacao||""
     })
 
-    const isFlagged = flaggedIds.includes(it.ParcelaId)
     tr.innerHTML=`
       <td>
-        <input type="checkbox" class="chkParcela" data-id="${it.ParcelaId}" data-json='${dados}' ${isFlagged?"checked":""}>
+        <input type="checkbox" class="chkParcela" data-id="${it.ParcelaId}" data-json='${dados}'>
       </td>
       <td>${it.ParcelaId||""}</td>
       <td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td>
@@ -268,17 +267,38 @@ function renderTable(apiResp){
         tr.classList.add("ok")
         chk.style.accentColor="green"
         await enviarParaPlanilha("conferir",[reg])
-      }else{
-        const i=flaggedIds.indexOf(reg.id)
-        if(i>=0) flaggedIds.splice(i,1)
-        saveFlags()
-        tr.classList.remove("ok")
-        await enviarParaPlanilha("excluir",[reg])
+
+        // troca checkbox por ❌
+        const td = chk.parentElement
+        td.innerHTML = `<button class="btn-inline btn-danger" onclick='removerRegistro(${JSON.stringify(reg).replace(/"/g,'&quot;')})'>❌</button>`
       }
     })
   })
 }
 
+// Função para remover e voltar checkbox
+async function removerRegistro(reg){
+  await enviarParaPlanilha("excluir",[reg])
+  const tr = document.querySelector(`tr td button[onclick*="${reg.id}"]`)?.closest("tr")
+  if(tr){
+    tr.classList.remove("ok")
+    const dados=JSON.stringify(reg).replace(/"/g,'&quot;')
+    tr.querySelector("td").innerHTML = `<input type="checkbox" class="chkParcela" data-id="${reg.id}" data-json='${dados}'>`
+    // reanexa listener ao novo checkbox
+    const novoChk = tr.querySelector(".chkParcela")
+    novoChk.addEventListener("change",async ()=>{
+      const regNovo=JSON.parse(novoChk.dataset.json)
+      if(novoChk.checked){
+        if(!flaggedIds.includes(regNovo.id)) flaggedIds.push(regNovo.id)
+        saveFlags()
+        tr.classList.add("ok")
+        novoChk.style.accentColor="green"
+        await enviarParaPlanilha("conferir",[regNovo])
+        tr.querySelector("td").innerHTML = `<button class="btn-inline btn-danger" onclick='removerRegistro(${JSON.stringify(regNovo).replace(/"/g,'&quot;')})'>❌</button>`
+      }
+    })
+  }
+}
 
   function popularEmpresas(apiResp){
     const items=(apiResp.Result&&apiResp.Result.Parcelas)||[]
