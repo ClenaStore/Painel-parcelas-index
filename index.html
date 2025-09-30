@@ -7,37 +7,39 @@
   <style>
     :root{
       --bg:#f4f6f8; --card:#fff; --ink:#0f1724; --muted:#6b7280;
-      --accent:#2563eb; --radius:12px; --danger:#dc2626; --warn:#f59e0b; --ok:#16a34a;
+      --accent:#2563eb; --danger:#dc2626; --warn:#f59e0b; --ok:#16a34a;
+      --radius:12px; --shadow:0 6px 18px rgba(9,20,43,.06);
     }
     *{box-sizing:border-box}
     body{margin:0;font-family:Inter,system-ui,Arial;background:var(--bg);color:var(--ink);}
     header{display:flex;align-items:center;gap:12px;padding:16px;background:#fff;
       border-bottom:1px solid #e5e7eb;position:sticky;top:0;z-index:5}
     header img{height:40px}
-    h1{margin:0;font-size:20px}
-    .card{background:var(--card);border-radius:var(--radius);box-shadow:0 6px 18px rgba(9,20,43,.06);
+    h1{margin:0;font-size:20px;font-weight:600}
+    .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
       padding:16px;margin:16px}
     .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
     input,select,button{padding:8px 10px;border-radius:8px;border:1px solid #e6edf3;font-size:14px}
-    button{cursor:pointer;transition:all .2s}
-    button:hover{opacity:.9;transform:scale(1.03)}
+    button{cursor:pointer;transition:.2s}
+    button:hover{opacity:.9;transform:scale(1.02)}
     .btn{background:var(--accent);color:#fff;border:none}
-    .btn-warn{background:var(--warn);color:#fff}
     .btn-danger{background:var(--danger);color:#fff}
-    .btn-secondary{background:#6b7280;color:#fff;border:none}
     table{width:100%;border-collapse:collapse}
     th{background:#fafcff;position:sticky;top:0;z-index:2;padding:8px;font-size:14px;text-align:left}
     td{padding:8px;border-bottom:1px solid #f1f5f9;font-size:13px;white-space:nowrap}
     tr.ok{background:#d1fae5}        /* verde */
-    tr.divergente{background:#fff3cd} /* laranja */
+    tr.divergente{background:#fff3cd} /* amarelo */
     tr:hover{background:#f9fafb}
     .small{font-size:13px;color:var(--muted)}
     .meta{margin-left:auto}
     footer{padding:12px 16px;font-size:13px;color:var(--muted);display:flex;justify-content:space-between}
     .btn-inline{margin-left:6px;padding:2px 6px;font-size:11px;border-radius:6px}
     .badge{display:inline-block;background:var(--warn);color:#fff;padding:2px 6px;font-size:11px;border-radius:6px;margin-left:4px}
-    #loader{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,.7);
-      display:none;align-items:center;justify-content:center;z-index:99;font-size:18px;font-weight:600}
+    /* Overlay azul */
+    #loader{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(37,99,235,.6);
+      display:none;align-items:center;justify-content:center;z-index:99;flex-direction:column;color:#fff;font-size:18px;font-weight:600}
+    .spinner{border:4px solid rgba(255,255,255,.3);border-top:4px solid #fff;border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite;margin-bottom:12px}
+    @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
     @media(max-width:760px){table{font-size:12px}.controls{flex-direction:column;align-items:stretch}}
   </style>
 </head>
@@ -51,7 +53,10 @@
     <div class="meta small">Status: <span id="status">inicializando...</span></div>
   </header>
 
-  <div id="loader">⏳ Carregando...</div>
+  <div id="loader">
+    <div class="spinner"></div>
+    Carregando...
+  </div>
 
   <div class="card">
     <div class="controls">
@@ -69,7 +74,6 @@
       <button class="btn" id="btnLoad">Carregar</button>
       <button class="btn" id="btnConferido">Conferir</button>
       <button class="btn-danger" id="btnExcluir">Excluir</button>
-      <button class="btn-secondary" id="btnExport">Exportar CSV</button>
     </div>
 
     <div id="tableWrap">
@@ -215,22 +219,9 @@
       }catch(e){alert("Erro GAS");console.error(e)}
     }
 
-    function exportCSV(){
-      const items=(apiCache.Result&&apiCache.Result.Parcelas)||[]
-      if(!items.length){alert("Nada para exportar");return}
-      const headers=["ID","Empresa","Fornecedor","Emissão","Vencimento","Valor","Status","Conta","Meio","TipoDoc","CentroCusto","PlanoContas","Obs"]
-      const rows=items.map(it=>[it.ParcelaId,it.DadosDoTitulo?.Empresa?.Nome,it.DadosDoTitulo?.ClienteFornecedor?.Nome,
-        it.DadosDoTitulo?.Emissao,it.Vencimento,it.ValorBruto,it.Status,it.Conta,it.MeioDePagamento,
-        it.DadosDoTitulo?.TipoDeDocumento,it.Rateio?.[0]?.CentroDeCusto,it.Rateio?.[0]?.PlanoDeContas,it.DadosDoTitulo?.Observacao])
-      const csv=[headers,...rows].map(r=>r.join(";")).join("\n")
-      const blob=new Blob([csv],{type:"text/csv"});const url=URL.createObjectURL(blob)
-      const a=document.createElement("a");a.href=url;a.download="parcelas.csv";a.click();URL.revokeObjectURL(url)
-    }
-
     document.getElementById("btnLoad").addEventListener("click",carregarParcelas)
     document.getElementById("btnConferido").addEventListener("click",()=>enviarParaPlanilha("conferir"))
     document.getElementById("btnExcluir").addEventListener("click",()=>enviarParaPlanilha("excluir"))
-    document.getElementById("btnExport").addEventListener("click",exportCSV)
     document.getElementById("searchBox").addEventListener("input",()=>renderTable(apiCache))
 
     const hoje=new Date().toISOString().slice(0,10)
