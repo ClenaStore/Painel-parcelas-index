@@ -183,28 +183,22 @@ function renderTable(apiResp){
     if(check.tipo==="ok") tr.classList.add("ok")
     if(check.tipo==="divergente"){tr.classList.add("divergente");tr.title="Diferenças: "+check.campos.join(", ")}
     const dados=JSON.stringify({id:it.ParcelaId||"",empresa:it.DadosDoTitulo?.Empresa?.Nome||"",fornecedor:it.DadosDoTitulo?.ClienteFornecedor?.Nome||"",emissao:it.DadosDoTitulo?.Emissao||"",vencimento:it.Vencimento||"",valor:it.ValorBruto||"",status:it.Status||"",conta:it.Conta||"",meio:it.MeioDePagamento||"",tipoDoc:it.DadosDoTitulo?.TipoDeDocumento||"",centroCusto:it.Rateio?.[0]?.CentroDeCusto||"",planoContas:it.Rateio?.[0]?.PlanoDeContas||"",observacao:it.DadosDoTitulo?.Observacao||""})
-tr.innerHTML=`
-  <td><input type="checkbox" class="chkParcela" data-id="${it.ParcelaId}" data-json='${dados}' ${flaggedIds.includes(String(it.ParcelaId))?"checked":""}></td>
-  <td>${it.ParcelaId||""}</td>
-  <td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td>
-  <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</td>
-  <td>${it.DadosDoTitulo?.Emissao||""}</td>
-  <td>${it.Vencimento||""}</td>
-  <td>${it.ValorBruto?.toLocaleString?.("pt-BR",{style:"currency",currency:"BRL"})||it.ValorBruto||""}</td>
-  <td>${it.Status||""}</td>
-  <td>${it.Conta||""}</td>
-  <td>${it.MeioDePagamento||""}</td>
-  <td>${it.DadosDoTitulo?.TipoDeDocumento||""}</td>
-  <td>${it.Rateio?.[0]?.CentroDeCusto||""}</td>
-  <td>${it.Rateio?.[0]?.PlanoDeContas||""}</td>
-  <td>${it.DadosDoTitulo?.Observacao||""}</td>
-  <td>
-    ${check.tipo==="divergente" 
-      ? `<button class="btn-inline" title="Atualizar planilha"
-          onclick='reconferirAprendendo(${JSON.stringify(it).replace(/"/g,"&quot;")})'>🔄</button>`
+    tr.innerHTML=`
+      <td><input type="checkbox" class="chkParcela" data-id="${it.ParcelaId}" data-json='${dados}' ${flaggedIds.includes(String(it.ParcelaId))?"checked":""}></td>
+      <td>${it.ParcelaId||""}</td><td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td><td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</td>
+      <td>${it.DadosDoTitulo?.Emissao||""}</td><td>${it.Vencimento||""}</td>
+      <td>${it.ValorBruto?.toLocaleString?.("pt-BR",{style:"currency",currency:"BRL"})||it.ValorBruto||""}</td>
+      <td>${it.Status||""}</td><td>${it.Conta||""}</td><td>${it.MeioDePagamento||""}</td>
+      <td>${it.DadosDoTitulo?.TipoDeDocumento||""}</td><td>${it.Rateio?.[0]?.CentroDeCusto||""}</td>
+      <td>${it.Rateio?.[0]?.PlanoDeContas||""}</td><td>${it.DadosDoTitulo?.Observacao||""}</td>
+<td>
+  ${check.tipo==="divergente" 
+      ? `<button class="btn-inline" title="Atualizar planilha" 
+          onclick='reconferirAprendendo(${JSON.stringify(it).replace(/"/g,"&quot;")})'>🔄 Atualizar</button>` 
       : ""}
-  </td>
-`    tbody.appendChild(tr)
+</td>
+
+    tbody.appendChild(tr)
   }
 
   // listeners
