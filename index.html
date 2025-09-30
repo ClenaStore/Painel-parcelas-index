@@ -117,12 +117,7 @@
         <div class="multi-menu" id="meioMenu"></div>
       </div>
 
-      <!-- Multi select de status -->
-      <div class="multi" id="statusMulti">
-        <input type="text" readonly placeholder="Status" id="statusInput" />
-        <div class="multi-menu" id="statusMenu"></div>
-      </div>
-
+      <select id="statusSelect"><option value="">-- Todos os status --</option></select>
       <input type="text" id="searchBox" placeholder="🔍 Buscar fornecedor..." />
       <button class="btn" id="btnLoad">Carregar</button>
       <button class="btn" id="btnConferido">Confirmar conferência</button>
@@ -177,6 +172,7 @@ if(localStorage.getItem("authSenha")!==SENHA_CORRETA){ loginEl.style.display="fl
 const statusEl=document.getElementById('status');
 const lastUpdateEl=document.getElementById('lastUpdate');
 const empresaSelect=document.getElementById('empresaSelect');
+const statusSelect=document.getElementById('statusSelect');
 const loader=document.getElementById('loader');
 const countEl=document.getElementById('count');
 const divCountEl=document.getElementById('divCount');
@@ -184,9 +180,6 @@ const totaisBox=document.getElementById('totaisBox');
 const meioMenu=document.getElementById('meioMenu');
 const meioInput=document.getElementById('meioInput');
 const meioMulti=document.getElementById('meioMulti');
-const statusMenu=document.getElementById('statusMenu');
-const statusInput=document.getElementById('statusInput');
-const statusMulti=document.getElementById('statusMulti');
 
 const ENDPOINT_SHEET="https://script.google.com/macros/s/AKfycbwxsDbA0MBPE1JFJySr9LMj4U_cVzlBQFvmiwcXWG8zRJwrnN2xyUxqycDI0Bsbybl1dA/exec";
 
@@ -261,12 +254,11 @@ async function carregarParcelas(mostrarOverlay=false){
     fim:document.getElementById('fim').value,
     tipoDatas:document.getElementById('tipoDatas').value
   };
-  const empresa=empresaSelect.value;
+  const empresa=empresaSelect.value, status=statusSelect.value;
   if(empresa) paramsBase.empresa=empresa;
+  if(status) paramsBase.status=status;
   const meiosSel=getMeiosSelecionados();
   if(meiosSel.length) paramsBase.meio=meiosSel.join(",");
-  const statusSel=getStatusSelecionados();
-  if(statusSel.length) paramsBase.status=statusSel.join(",");
 
   let pagina=1,todos=[];
   while(true){
@@ -285,7 +277,7 @@ async function carregarParcelas(mostrarOverlay=false){
 }
 function aplicarFiltros(items){
   const empresa=empresaSelect.value;
-  const statusSel=getStatusSelecionados();
+  const status=statusSelect.value;
   const meiosSel=getMeiosSelecionados().map(simplifyText);
   const tipoDatas=document.getElementById('tipoDatas').value;
   const dIni=parseISO(document.getElementById('inicio').value);
@@ -295,7 +287,7 @@ function aplicarFiltros(items){
     const txt=((it.DadosDoTitulo?.ClienteFornecedor?.Nome||"")+" "+(it.DadosDoTitulo?.Empresa?.Nome||"")+" "+(it.DadosDoTitulo?.Observacao||"")).toLowerCase();
     if(q && !txt.includes(q)) return false;
     if(empresa && (it.DadosDoTitulo?.Empresa?.Nome||"")!==empresa) return false;
-    if(statusSel.length && !statusSel.includes(it.Status||"")) return false;
+    if(status && (it.Status||"")!==status) return false;
     if(meiosSel.length){
       const meio=simplifyText(it.MeioDePagamento||"");
       if(!meiosSel.includes(meio)) return false;
@@ -406,32 +398,29 @@ function popularFiltros(apiResp){
     const opt=document.createElement("option"); opt.value=e; opt.textContent=e; empresaSelect.appendChild(opt);
   });
   if(curEmpresa) empresaSelect.value=curEmpresa;
-
-  // status (multi-select)
-  const selAntes=getStatusSelecionados();
-  const statusUnicos=[...new Set(items.map(it=>it.Status).filter(Boolean))].sort();
-  statusMenu.innerHTML="";
-  if(statusUnicos.length){
-    statusMenu.insertAdjacentHTML("beforeend",
-      `<label><input type="checkbox" data-bulk="all"> <strong>Selecionar/limpar tudo</strong></label>
-       <hr style="border:none;border-top:1px solid #eee;margin:6px 0">`);
-  }
-  statusUnicos.forEach(s=>{
-    const checked = selAntes.includes(s) || s.includes("Aberto");
-    statusMenu.insertAdjacentHTML("beforeend", 
-      `<label><input type="checkbox" value="${s}" ${checked?'checked':''}> ${s}</label>`);
-  });
-  atualizarTextoStatus();
+  // status
+// status
+const curStatus = statusSelect.value || "Aberto";  // garante fallback em "Aberto"
+const statusUnicos=[...new Set(items.map(it=>it.Status).filter(Boolean))].sort();
+statusSelect.innerHTML='<option value="">-- Todos os status --</option>';
+statusUnicos.forEach(s=>{
+  const opt=document.createElement("option"); 
+  opt.value=s; 
+  opt.textContent=s; 
+  statusSelect.appendChild(opt);
+});
+// mantém a seleção ou força "Aberto" se não houver
+if(curStatus) statusSelect.value=curStatus;
 
   // meios
-  const selAntesMeio=getMeiosSelecionados();
+  const selAntes=getMeiosSelecionados();
   const meios=[...new Set(items.map(it=>it.MeioDePagamento).filter(Boolean))].sort();
   meioMenu.innerHTML="";
   if(meios.length){
     meioMenu.insertAdjacentHTML("beforeend", `<label><input type="checkbox" data-bulk="all"> <strong>Selecionar/limpar tudo</strong></label><hr style="border:none;border-top:1px solid #eee;margin:6px 0">`);
   }
   meios.forEach(m=>{
-    const checked = selAntesMeio.includes(m);
+    const checked = selAntes.includes(m);
     meioMenu.insertAdjacentHTML("beforeend", `<label><input type="checkbox" value="${m}" ${checked?'checked':''}> ${m}</label>`);
   });
   atualizarTextoMeio();
@@ -455,25 +444,13 @@ meioMenu.addEventListener("change",e=>{
   renderTable(apiCache);
 });
 
-/* ===== STATUS MULTI ===== */
-function getStatusSelecionados(){
-  return [...statusMenu.querySelectorAll('input[type="checkbox"][value]')]
-    .filter(c=>c.checked).map(c=>c.value);
-}
-function atualizarTextoStatus(){
-  const s=getStatusSelecionados();
-  statusInput.value = s.length ? `${s.length} selecionado(s)` : "Status";
-}
-statusInput.addEventListener("click",()=>statusMulti.classList.toggle("open"));
-document.addEventListener("click",e=>{ if(!statusMulti.contains(e.target)) statusMulti.classList.remove("open"); });
-statusMenu.addEventListener("change",e=>{
-  if(e.target.dataset.bulk==="all"){
-    const all=!!e.target.checked;
-    statusMenu.querySelectorAll('input[type="checkbox"][value]').forEach(c=>c.checked=all);
-  }
-  atualizarTextoStatus();
-  renderTable(apiCache);
-});
+// outros filtros
+empresaSelect.addEventListener("change",()=>renderTable(apiCache));
+statusSelect.addEventListener("change",()=>renderTable(apiCache));
+document.getElementById("tipoDatas").addEventListener("change",()=>renderTable(apiCache));
+document.getElementById("inicio").addEventListener("change",()=>renderTable(apiCache));
+document.getElementById("fim").addEventListener("change",()=>renderTable(apiCache));
+document.getElementById("searchBox").addEventListener("input",()=>renderTable(apiCache));
 
 /* ===== PLANILHA <-> APP ===== */
 async function enviarParaPlanilha(acao,registros){
@@ -505,11 +482,15 @@ document.getElementById("btnConferido").addEventListener("click",async ()=>{
 });
 
 const hoje = new Date();
-const tresDiasAtras = new Date();
-tresDiasAtras.setDate(hoje.getDate() - 3);
+const cincoDiasAtras = new Date();
+cincoDiasAtras.setDate(hoje.getDate() - 3); // Quantidade de dias para trás do dia atual
 
-document.getElementById("inicio").value = tresDiasAtras.toISOString().slice(0,10);
+document.getElementById("inicio").value = cincoDiasAtras.toISOString().slice(0,10);
 document.getElementById("fim").value = hoje.toISOString().slice(0,10);
+
+
+// força status inicial = Aberto
+statusSelect.value="Aberto";
 
 // primeira carga
 carregarParcelas(true);
