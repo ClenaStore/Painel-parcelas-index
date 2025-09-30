@@ -399,13 +399,19 @@ function popularFiltros(apiResp){
   });
   if(curEmpresa) empresaSelect.value=curEmpresa;
   // status
-  const curStatus=statusSelect.value;
-  const statusUnicos=[...new Set(items.map(it=>it.Status).filter(Boolean))].sort();
-  statusSelect.innerHTML='<option value="">-- Todos os status --</option>';
-  statusUnicos.forEach(s=>{
-    const opt=document.createElement("option"); opt.value=s; opt.textContent=s; statusSelect.appendChild(opt);
-  });
-  if(curStatus) statusSelect.value=curStatus;
+// status
+const curStatus = statusSelect.value || "Aberto";  // garante fallback em "Aberto"
+const statusUnicos=[...new Set(items.map(it=>it.Status).filter(Boolean))].sort();
+statusSelect.innerHTML='<option value="">-- Todos os status --</option>';
+statusUnicos.forEach(s=>{
+  const opt=document.createElement("option"); 
+  opt.value=s; 
+  opt.textContent=s; 
+  statusSelect.appendChild(opt);
+});
+// mantém a seleção ou força "Aberto" se não houver
+if(curStatus) statusSelect.value=curStatus;
+
   // meios
   const selAntes=getMeiosSelecionados();
   const meios=[...new Set(items.map(it=>it.MeioDePagamento).filter(Boolean))].sort();
@@ -481,6 +487,10 @@ const y=hoje.getFullYear(), m=hoje.getMonth();
 document.getElementById("inicio").value=new Date(y,m,1).toISOString().slice(0,10);
 document.getElementById("fim").value=new Date(y,m+1,0).toISOString().slice(0,10);
 
+// força status inicial = Aberto
+statusSelect.value="Aberto";
+
+// primeira carga
 carregarParcelas(true);
 setInterval(()=>carregarPlanilha(),5000);
 </script>
