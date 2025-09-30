@@ -185,8 +185,6 @@ const ENDPOINT_SHEET="https://script.google.com/macros/s/AKfycbw9D_ALlTsJbeRsSiC
 
 let planilhaCache=[], apiCache=[];
 let isFetchingPlanilha=false;
-const flaggedIds=JSON.parse(localStorage.getItem("flaggedIds")||"[]");
-function saveFlags(){ localStorage.setItem("flaggedIds",JSON.stringify(flaggedIds)) }
 function setStatus(t){ statusEl.textContent=t }
 function showLoader(b){ loader.style.display=b?"flex":"none" }
 
@@ -378,7 +376,7 @@ for(const it of items){
   } // fora => branco
 
   tr.innerHTML=`
-    <td><input type="checkbox" class="chkParcela" data-id="${id}" ${flaggedIds.includes(id)?"checked":""}></td>
+   <td><input type="checkbox" class="chkParcela" data-id="${id}" ${planilhaCache.some(p=>String(p.ID||p.Numero||"")===id)?"checked":""}></td>
     <td>${id}</td><td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td>
     <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</td>
     <td>${it.DadosDoTitulo?.Emissao||""}</td><td>${it.Vencimento||""}</td>
@@ -419,18 +417,14 @@ for(const it of items){
         observacao:it.DadosDoTitulo?.Observacao||""
       };
 
-      if(chk.checked){
-        if(!flaggedIds.includes(id)) flaggedIds.push(id);
-        if(verificarDivergencia(it).tipo==="ok") tr.classList.add("ok");
-        saveFlags();
-        await enviarParaPlanilha("conferir",[reg]);
-      }else{
-        const i=flaggedIds.indexOf(id); if(i>=0) flaggedIds.splice(i,1);
-        tr.classList.remove("ok");
-        saveFlags();
-        await enviarParaPlanilha("excluir",[reg]);
-      }
-      carregarPlanilha();
+if(chk.checked){
+  if(verificarDivergencia(it).tipo==="ok") tr.classList.add("ok");
+  await enviarParaPlanilha("conferir",[reg]);
+}else{
+  tr.classList.remove("ok");
+  await enviarParaPlanilha("excluir",[reg]);
+}
+     carregarPlanilha();
     });
   });
 }
