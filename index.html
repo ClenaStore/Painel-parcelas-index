@@ -481,11 +481,13 @@ document.getElementById("btnConferido").addEventListener("click",async ()=>{
   carregarPlanilha();
 });
 
-/* ===== BOOT ===== */
-const hoje=new Date();
-const y=hoje.getFullYear(), m=hoje.getMonth();
-document.getElementById("inicio").value=new Date(y,m,1).toISOString().slice(0,10);
-document.getElementById("fim").value=new Date(y,m+1,0).toISOString().slice(0,10);
+const hoje = new Date();
+const cincoDiasAtras = new Date();
+cincoDiasAtras.setDate(hoje.getDate() - 5);
+
+document.getElementById("inicio").value = cincoDiasAtras.toISOString().slice(0,10);
+document.getElementById("fim").value = hoje.toISOString().slice(0,10);
+
 
 // força status inicial = Aberto
 statusSelect.value="Aberto";
