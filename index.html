@@ -298,10 +298,12 @@ function aplicarFiltros(items){
     if(empresa && (it.DadosDoTitulo?.Empresa?.Nome||"")!==empresa) return false;
 
     // --- STATUS ---
-    if(statusSel.length){
-      const st=simplifyText(it.Status||"");
-      if(!statusSel.includes(st)) return false;
-    }
+if(statusSel.length){
+  const st=simplifyText(it.Status||"");
+  const alvo=statusSel.map(simplifyText);
+  if(!alvo.includes(st)) return false;
+}
+
 
     // --- MEIO ---
     if(meiosSel.length){
@@ -428,7 +430,7 @@ function popularFiltros(apiResp){
        <hr style="border:none;border-top:1px solid #eee;margin:6px 0">`);
   }
   statusUnicos.forEach(s=>{
-    const checked = selAntes.includes(s) || s.includes("Aberto");
+    const checked = selAntes.includes(s) || s === "Aberto (A Vencer)" || s === "Aberto (Vencido)";
     statusMenu.insertAdjacentHTML("beforeend", 
       `<label><input type="checkbox" value="${s}" ${checked?'checked':''}> ${s}</label>`);
   });
