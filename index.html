@@ -19,19 +19,25 @@
       padding:16px;margin:16px}
     .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
     input,select,button{padding:8px 10px;border-radius:8px;border:1px solid #e6edf3;font-size:14px}
-    button{cursor:pointer}
+    button{cursor:pointer;transition:all .2s}
+    button:hover{opacity:.9;transform:scale(1.03)}
     .btn{background:var(--accent);color:#fff;border:none}
     .btn-warn{background:var(--warn);color:#fff}
     .btn-danger{background:var(--danger);color:#fff}
+    .btn-secondary{background:#6b7280;color:#fff;border:none}
     table{width:100%;border-collapse:collapse}
     th{background:#fafcff;position:sticky;top:0;z-index:2;padding:8px;font-size:14px;text-align:left}
     td{padding:8px;border-bottom:1px solid #f1f5f9;font-size:13px;white-space:nowrap}
     tr.ok{background:#d1fae5}        /* verde */
     tr.divergente{background:#fff3cd} /* laranja */
+    tr:hover{background:#f9fafb}
     .small{font-size:13px;color:var(--muted)}
     .meta{margin-left:auto}
     footer{padding:12px 16px;font-size:13px;color:var(--muted);display:flex;justify-content:space-between}
     .btn-inline{margin-left:6px;padding:2px 6px;font-size:11px;border-radius:6px}
+    .badge{display:inline-block;background:var(--warn);color:#fff;padding:2px 6px;font-size:11px;border-radius:6px;margin-left:4px}
+    #loader{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,.7);
+      display:none;align-items:center;justify-content:center;z-index:99;font-size:18px;font-weight:600}
     @media(max-width:760px){table{font-size:12px}.controls{flex-direction:column;align-items:stretch}}
   </style>
 </head>
@@ -45,6 +51,8 @@
     <div class="meta small">Status: <span id="status">inicializando...</span></div>
   </header>
 
+  <div id="loader">⏳ Carregando...</div>
+
   <div class="card">
     <div class="controls">
       <select id="empresaSelect"><option value="">-- Todas as empresas --</option></select>
@@ -57,9 +65,11 @@
         <option value="Pago">Pago</option>
         <option value="Cancelado">Cancelado</option>
       </select>
+      <input type="text" id="searchBox" placeholder="🔍 Buscar fornecedor..." />
       <button class="btn" id="btnLoad">Carregar</button>
       <button class="btn" id="btnConferido">Conferir</button>
       <button class="btn-danger" id="btnExcluir">Excluir</button>
+      <button class="btn-secondary" id="btnExport">Exportar CSV</button>
     </div>
 
     <div id="tableWrap">
@@ -92,99 +102,85 @@
   </footer>
 
   <script>
-    const statusEl = document.getElementById('status')
-    const lastUpdateEl = document.getElementById('lastUpdate')
-    const empresaSelect = document.getElementById('empresaSelect')
-    const statusSelect = document.getElementById('statusSelect')
+    const statusEl=document.getElementById('status')
+    const lastUpdateEl=document.getElementById('lastUpdate')
+    const empresaSelect=document.getElementById('empresaSelect')
+    const statusSelect=document.getElementById('statusSelect')
+    const loader=document.getElementById('loader')
 
-    const ENDPOINT_SHEET = "https://script.google.com/macros/s/AKfycbzGv0JGqq2u46T0BZakop8TMGe5LwX65cFahtdBkITX0MicnZ8c4V4zJbkO_reJy6Xczw/exec" // coloque a URL publicada do Apps Script
+    const ENDPOINT_SHEET="https://script.google.com/macros/s/AKfycbwxsDbA0MBPE1JFJySr9LMj4U_cVzlBQFvmiwcXWG8zRJwrnN2xyUxqycDI0Bsbybl1dA/exec"
 
-    let planilhaCache = []
+    let planilhaCache=[]
+    let apiCache=[]
 
-    function setStatus(t){ statusEl.textContent = t }
+    function setStatus(t){statusEl.textContent=t}
+    function showLoader(b){loader.style.display=b?"flex":"none"}
 
     async function carregarPlanilha(){
       try{
-        const r = await fetch(ENDPOINT_SHEET)
-        const j = await r.json()
-        planilhaCache = j.data || []
-      }catch(e){
-        console.error("Erro planilha", e)
-        planilhaCache = []
-      }
+        const r=await fetch(ENDPOINT_SHEET)
+        const j=await r.json()
+        planilhaCache=j.data||[]
+      }catch(e){console.error("Erro planilha",e);planilhaCache=[]}
     }
 
     function verificarDivergencia(it){
-      const plan = planilhaCache.find(p => p.ID == it.ParcelaId)
-      if (!plan) return { tipo:"fora" } // não está na planilha → branco
-
+      const plan=planilhaCache.find(p=>p.ID==it.ParcelaId)
+      if(!plan) return {tipo:"fora"}
       let diffs=[]
-      if (Number(plan.Valor) !== Number(it.ValorBruto)) diffs.push("valor")
-      if (plan.Vencimento !== it.Vencimento) diffs.push("vencimento")
-      if (plan.Status !== it.Status) diffs.push("status")
-      if (plan.Conta !== it.Conta) diffs.push("conta")
-      if (plan["Meio Pagamento"] !== it.MeioDePagamento) diffs.push("meio")
-
-      return diffs.length>0 ? { tipo:"divergente", campos:diffs } : { tipo:"ok" }
+      if(plan.Valor!=it.ValorBruto) diffs.push("valor")
+      if(plan.Vencimento!=it.Vencimento) diffs.push("vencimento")
+      if(plan.Status!=it.Status) diffs.push("status")
+      if(plan.Conta!=it.Conta) diffs.push("conta")
+      if(plan["Meio Pagamento"]!=it.MeioDePagamento) diffs.push("meio")
+      return diffs.length>0?{tipo:"divergente",campos:diffs}:{tipo:"ok"}
     }
 
     async function carregarParcelas(){
       await carregarPlanilha()
-      setStatus("carregando...")
-      const inicio = document.getElementById('inicio').value
-      const fim = document.getElementById('fim').value
-      const tipoDatas = document.getElementById('tipoDatas').value
-      const empresa = empresaSelect.value
-      const statusFiltro = statusSelect.value
-      const params = new URLSearchParams({pagina:1,tipo:"Despesa",inicio,fim,tipoDatas})
-      if(empresa) params.append("empresa",empresa)
-      if(statusFiltro) params.append("status",statusFiltro)
+      setStatus("carregando...");showLoader(true)
+      const inicio=document.getElementById('inicio').value
+      const fim=document.getElementById('fim').value
+      const tipoDatas=document.getElementById('tipoDatas').value
+      const empresa=empresaSelect.value
+      const statusFiltro=statusSelect.value
+      const params=new URLSearchParams({pagina:1,tipo:"Despesa",inicio,fim,tipoDatas})
+      if(empresa)params.append("empresa",empresa)
+      if(statusFiltro)params.append("status",statusFiltro)
       try{
-        const r = await fetch('/api/parcelas?'+params.toString())
-        const data = await r.json()
-        renderTable(data)
-        popularEmpresas(data)
-        setStatus("ok")
-        lastUpdateEl.textContent = new Date().toLocaleString()
-      }catch(e){
-        console.error(e)
-        setStatus("erro fetch")
-      }
+        const r=await fetch('/api/parcelas?'+params.toString())
+        const data=await r.json();apiCache=data
+        renderTable(data);popularEmpresas(data)
+        setStatus("ok");lastUpdateEl.textContent=new Date().toLocaleString()
+      }catch(e){console.error(e);setStatus("erro fetch")}
+      finally{showLoader(false)}
     }
 
     function renderTable(apiResp){
-      const tbody = document.querySelector("#parcelasTable tbody")
+      const tbody=document.querySelector("#parcelasTable tbody")
       tbody.innerHTML=""
-      const items=(apiResp.Result && apiResp.Result.Parcelas)||[]
+      let items=(apiResp.Result&&apiResp.Result.Parcelas)||[]
+      const search=document.getElementById("searchBox").value.toLowerCase()
+      if(search) items=items.filter(it=>(it.DadosDoTitulo?.ClienteFornecedor?.Nome||"").toLowerCase().includes(search))
       if(!items.length){tbody.innerHTML="<tr><td colspan=14>Nenhuma parcela</td></tr>";return}
-
       for(const it of items){
         const tr=document.createElement("tr")
         const check=verificarDivergencia(it)
-
-        if(check.tipo==="ok") tr.classList.add("ok") // verde
+        if(check.tipo==="ok") tr.classList.add("ok")
         if(check.tipo==="divergente") tr.classList.add("divergente")
-
-        const dados = JSON.stringify({
-          id: it.ParcelaId||"", empresa: it.DadosDoTitulo?.Empresa?.Nome||"",
-          fornecedor: it.DadosDoTitulo?.ClienteFornecedor?.Nome||"",
-          emissao: it.DadosDoTitulo?.Emissao||"", vencimento: it.Vencimento||"",
-          valor: it.ValorBruto||"", status: it.Status||"", conta: it.Conta||"",
-          meio: it.MeioDePagamento||"", tipoDoc: it.DadosDoTitulo?.TipoDeDocumento||"",
-          centroCusto: it.Rateio?.[0]?.CentroDeCusto||"", planoContas: it.Rateio?.[0]?.PlanoDeContas||"",
-          observacao: it.DadosDoTitulo?.Observacao||""
+        const dados=JSON.stringify({
+          id:it.ParcelaId||"",empresa:it.DadosDoTitulo?.Empresa?.Nome||"",
+          fornecedor:it.DadosDoTitulo?.ClienteFornecedor?.Nome||"",
+          emissao:it.DadosDoTitulo?.Emissao||"",vencimento:it.Vencimento||"",
+          valor:it.ValorBruto||"",status:it.Status||"",conta:it.Conta||"",
+          meio:it.MeioDePagamento||"",tipoDoc:it.DadosDoTitulo?.TipoDeDocumento||"",
+          centroCusto:it.Rateio?.[0]?.CentroDeCusto||"",planoContas:it.Rateio?.[0]?.PlanoDeContas||"",
+          observacao:it.DadosDoTitulo?.Observacao||""
         })
-
-        let btnReconferir = ""
-        if(check.tipo==="divergente"){
-          btnReconferir = `<button class="btn-warn btn-inline" onclick='enviarParaPlanilha("reconferir",[${dados}])'>Reconferir</button>`
-        }
-
+        let btnReconferir=""
+        if(check.tipo==="divergente") btnReconferir=`<span class="badge">Diferença</span> <button class="btn-warn btn-inline" onclick='enviarParaPlanilha("reconferir",[${dados}])'>Reconferir</button>`
         tr.innerHTML=`
-          <td>
-            <input type="checkbox" class="chkParcela" data-json='${dados}'>
-            ${btnReconferir}
-          </td>
+          <td><input type="checkbox" class="chkParcela" data-json='${dados}'>${btnReconferir}</td>
           <td>${it.ParcelaId||""}</td>
           <td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td>
           <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</td>
@@ -203,33 +199,39 @@
     }
 
     function popularEmpresas(apiResp){
-      const items=(apiResp.Result && apiResp.Result.Parcelas)||[]
+      const items=(apiResp.Result&&apiResp.Result.Parcelas)||[]
       const empresas=[...new Set(items.map(it=>it.DadosDoTitulo?.Empresa?.Nome).filter(Boolean))]
       empresaSelect.innerHTML='<option value="">-- Todas as empresas --</option>'
-      empresas.forEach(e=>{
-        const opt=document.createElement("option");opt.value=e;opt.textContent=e
-        empresaSelect.appendChild(opt)
-      })
+      empresas.forEach(e=>{const opt=document.createElement("option");opt.value=e;opt.textContent=e;empresaSelect.appendChild(opt)})
     }
 
-    async function enviarParaPlanilha(tipo, registrosDiretos){
-      let selecionados = registrosDiretos || [...document.querySelectorAll(".chkParcela:checked")].map(chk=>JSON.parse(chk.dataset.json))
+    async function enviarParaPlanilha(tipo,registrosDiretos){
+      let selecionados=registrosDiretos||[...document.querySelectorAll(".chkParcela:checked")].map(chk=>JSON.parse(chk.dataset.json))
       if(!selecionados.length){alert("Selecione ao menos uma parcela!");return}
-      let body={acao:tipo, registros:selecionados}
+      let body={acao:tipo,registros:selecionados}
       try{
-        const r=await fetch(ENDPOINT_SHEET,{
-          method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
-          body:JSON.stringify(body)
-        })
-        const resp=await r.json()
-        alert((resp.success?"OK: ":"Erro: ")+JSON.stringify(resp))
-        carregarParcelas()
+        const r=await fetch(ENDPOINT_SHEET,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)})
+        const resp=await r.json();alert((resp.success?"OK: ":"Erro: ")+JSON.stringify(resp));carregarParcelas()
       }catch(e){alert("Erro GAS");console.error(e)}
+    }
+
+    function exportCSV(){
+      const items=(apiCache.Result&&apiCache.Result.Parcelas)||[]
+      if(!items.length){alert("Nada para exportar");return}
+      const headers=["ID","Empresa","Fornecedor","Emissão","Vencimento","Valor","Status","Conta","Meio","TipoDoc","CentroCusto","PlanoContas","Obs"]
+      const rows=items.map(it=>[it.ParcelaId,it.DadosDoTitulo?.Empresa?.Nome,it.DadosDoTitulo?.ClienteFornecedor?.Nome,
+        it.DadosDoTitulo?.Emissao,it.Vencimento,it.ValorBruto,it.Status,it.Conta,it.MeioDePagamento,
+        it.DadosDoTitulo?.TipoDeDocumento,it.Rateio?.[0]?.CentroDeCusto,it.Rateio?.[0]?.PlanoDeContas,it.DadosDoTitulo?.Observacao])
+      const csv=[headers,...rows].map(r=>r.join(";")).join("\n")
+      const blob=new Blob([csv],{type:"text/csv"});const url=URL.createObjectURL(blob)
+      const a=document.createElement("a");a.href=url;a.download="parcelas.csv";a.click();URL.revokeObjectURL(url)
     }
 
     document.getElementById("btnLoad").addEventListener("click",carregarParcelas)
     document.getElementById("btnConferido").addEventListener("click",()=>enviarParaPlanilha("conferir"))
     document.getElementById("btnExcluir").addEventListener("click",()=>enviarParaPlanilha("excluir"))
+    document.getElementById("btnExport").addEventListener("click",exportCSV)
+    document.getElementById("searchBox").addEventListener("input",()=>renderTable(apiCache))
 
     const hoje=new Date().toISOString().slice(0,10)
     document.getElementById("inicio").value=hoje
