@@ -258,6 +258,29 @@ function atualizarDivergenciasNaView(){
   });
   divCountEl.textContent=divergentes;
 }
+function atualizarDivergenciasNaTela(){
+  document.querySelectorAll("tr[data-id]").forEach(tr=>{
+    const id = tr.getAttribute("data-id");
+    const empresa = tr.getAttribute("data-empresa");
+
+    // monta um objeto "item" no mesmo formato do renderTable
+    const item = {
+      ParcelaId: id,
+      DadosDoTitulo: {
+        Empresa: { Nome: empresa },
+        ClienteFornecedor: { Nome: tr.getAttribute("data-fornecedor") },
+        Emissao: tr.getAttribute("data-emissao")
+      },
+      Vencimento: tr.getAttribute("data-vencimento"),
+      ValorBruto: tr.getAttribute("data-valor")
+    };
+
+    const res = verificarDivergencia(item);
+
+    tr.classList.remove("ok","divergente","fora");
+    tr.classList.add(res.tipo);
+  });
+}
 
 /* ===== API + RENDER ===== */
 async function carregarParcelas(mostrarOverlay=false){
@@ -516,7 +539,11 @@ statusSelect.value="Aberto";
 
 // primeira carga
 carregarParcelas(true);
-setInterval(()=>carregarPlanilha(),5000);
+setInterval(async ()=>{
+  await carregarPlanilha();
+  atualizarDivergenciasNaView();
+}, 5000);
+
 </script>
 </body>
 </html>
