@@ -186,8 +186,6 @@ const ENDPOINT_SHEET="https://script.google.com/macros/s/AKfycbwYIWxJ2StCreHbMdw
 
 let planilhaCache=[], apiCache=[];
 let isFetchingPlanilha=false;
-const flaggedIds=JSON.parse(localStorage.getItem("flaggedIds")||"[]");
-function saveFlags(){ localStorage.setItem("flaggedIds",JSON.stringify(flaggedIds)) }
 function setStatus(t){ statusEl.textContent=t }
 function showLoader(b){ loader.style.display=b?"flex":"none" }
 
@@ -336,10 +334,9 @@ function renderTable(apiResp){
     const check=verificarDivergencia(it);
     if(check.tipo==="divergente"){ tr.classList.add("divergente"); divergentes++; }
     const id=String(it.ParcelaId);
-    if(flaggedIds.includes(id) && check.tipo==="ok") tr.classList.add("ok");
 
     tr.innerHTML=`
-      <td><input type="checkbox" class="chkParcela" data-id="${id}" ${flaggedIds.includes(id)?"checked":""}></td>
+      <td><input type="checkbox" class="chkParcela" data-id="${id}" ${check.tipo!=="fora"?"checked":""}></td>
       <td>${id}</td><td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td>
       <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</td>
       <td>${it.DadosDoTitulo?.Emissao||""}</td><td>${it.Vencimento||""}</td>
@@ -362,35 +359,29 @@ function renderTable(apiResp){
   });
   totaisBox.textContent=txt;
 
-  document.querySelectorAll(".chkParcela").forEach(chk=>{
-    chk.addEventListener("change",async ()=>{
-      const id=String(chk.dataset.id);
-      const tr=chk.closest("tr");
-      const it=JSON.parse(tr.dataset.item||"{}");
-      const reg={
-        id:it.ParcelaId||"", empresa:it.DadosDoTitulo?.Empresa?.Nome||"",
-        fornecedor:it.DadosDoTitulo?.ClienteFornecedor?.Nome||"",
-        emissao:it.DadosDoTitulo?.Emissao||"", vencimento:it.Vencimento||"",
-        valor:it.ValorBruto||"", status:it.Status||"", conta:it.Conta||"",
-        meio:it.MeioDePagamento||"", tipoDoc:it.DadosDoTitulo?.TipoDeDocumento||"",
-        centroCusto:it.Rateio?.[0]?.CentroDeCusto||"", planoContas:it.Rateio?.[0]?.PlanoDeContas||"",
-        observacao:it.DadosDoTitulo?.Observacao||""
-      };
+document.querySelectorAll(".chkParcela").forEach(chk=>{
+  chk.addEventListener("change",async ()=>{
+    const tr=chk.closest("tr");
+    const it=JSON.parse(tr.dataset.item||"{}");
+    const reg={
+      id:it.ParcelaId||"", empresa:it.DadosDoTitulo?.Empresa?.Nome||"",
+      fornecedor:it.DadosDoTitulo?.ClienteFornecedor?.Nome||"",
+      emissao:it.DadosDoTitulo?.Emissao||"", vencimento:it.Vencimento||"",
+      valor:it.ValorBruto||"", status:it.Status||"", conta:it.Conta||"",
+      meio:it.MeioDePagamento||"", tipoDoc:it.DadosDoTitulo?.TipoDeDocumento||"",
+      centroCusto:it.Rateio?.[0]?.CentroDeCusto||"", planoContas:it.Rateio?.[0]?.PlanoDeContas||"",
+      observacao:it.DadosDoTitulo?.Observacao||""
+    };
 
-      if(chk.checked){
-        if(!flaggedIds.includes(id)) flaggedIds.push(id);
-        if(verificarDivergencia(it).tipo==="ok") tr.classList.add("ok");
-        saveFlags();
-        await enviarParaPlanilha("conferir",[reg]);
-      }else{
-        const i=flaggedIds.indexOf(id); if(i>=0) flaggedIds.splice(i,1);
-        tr.classList.remove("ok");
-        saveFlags();
-        await enviarParaPlanilha("excluir",[reg]);
-      }
-      carregarPlanilha();
-    });
+    if(chk.checked){
+      await enviarParaPlanilha("conferir",[reg]);
+    }else{
+      await enviarParaPlanilha("excluir",[reg]);
+    }
+    carregarPlanilha();
   });
+});
+
 }
 
 /* ===== FILTROS ===== */
