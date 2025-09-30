@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Painel • Pré Aprovação</title>
   <style>
     :root{
@@ -14,67 +14,66 @@
     html,body{height:100%}
     body{font-family:Inter,system-ui,Arial;background:var(--bg);color:var(--ink);
       display:flex;flex-direction:column;overflow:hidden}
-    header{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fff;
+    header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:#fff;
       border-bottom:1px solid #e5e7eb;z-index:10;box-shadow:var(--shadow)}
-    header img{height:26px}
-    h1{margin:0;font-size:14px;font-weight:600}
-    .badge-top{margin-left:8px;background:var(--warn);color:#fff;font-size:11px;
-      padding:2px 8px;border-radius:12px;font-weight:600}
-    .meta{margin-left:auto;font-size:11px;color:var(--muted)}
-    .perfil{display:flex;align-items:center;gap:6px;margin-left:8px}
-    .perfil img{width:36px;height:36px;border-radius:50%}
-    .perfil span{font-size:12px;color:var(--ink);font-weight:500}
+    header img{height:32px}
+    h1{margin:0;font-size:16px;font-weight:600}
+    .badge-top{margin-left:16px;background:var(--warn);color:#fff;font-size:12px;
+      padding:4px 10px;border-radius:16px;font-weight:600}
+    .meta{margin-left:auto;font-size:13px;color:var(--muted)}
+    .perfil{display:flex;align-items:center;gap:8px;margin-left:16px}
+    .perfil img{width:45px;height:45px;border-radius:50%}
+    .perfil span{font-size:13px;color:var(--ink);font-weight:500}
     .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
-      padding:8px 10px;margin:8px;display:flex;flex-direction:column;flex:1;overflow:hidden}
-    .controls{display:grid;gap:8px;margin-bottom:8px}
-    .controls .linha{display:flex;gap:8px;flex-wrap:wrap}
+      padding:12px 16px;margin:12px;display:flex;flex-direction:column;flex:1;overflow:hidden}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
     input,select,button{
-      padding:6px 8px;border-radius:6px;border:1px solid #d1d5db;font-size:13px;
-      background:#fff;transition:.2s;flex:1
+      padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:14px;
+      background:#fff;transition:.2s
     }
     input:focus,select:focus{outline:none;border-color:var(--accent);
       box-shadow:0 0 0 2px rgba(37,99,235,.15)}
     button{cursor:pointer}
-    .btn{background:var(--accent);color:#fff;border:none;font-size:13px;font-weight:600}
+    .btn{background:var(--accent);color:#fff;border:none}
     .btn:hover{opacity:.9;transform:scale(1.02)}
-    .totais{margin-left:4px;font-size:12px;font-weight:600;color:var(--ink)}
+    .totais{margin-left:12px;font-size:13px;font-weight:600;color:var(--ink)}
     #tableWrap{flex:1;overflow:auto}
     table{width:100%;border-collapse:separate;border-spacing:0 4px}
-    th{background:#f3f4f6;position:sticky;top:0;z-index:5;padding:8px;font-size:11px;
+    th{background:#f3f4f6;position:sticky;top:0;z-index:5;padding:10px;font-size:12px;
       text-align:left;text-transform:uppercase;font-weight:600;color:var(--muted)}
-    td{padding:8px;background:#fff;border-bottom:1px solid #f1f5f9;font-size:12px;
+    td{padding:10px;background:#fff;border-bottom:1px solid #f1f5f9;font-size:13px;
       white-space:nowrap;border-top:1px solid #f1f5f9;transition:.2s}
     tr.ok td{background:#ecfdf5}
     tr.divergente td{background:#fff8eb}
     tr:hover td{background:#f3f4f6}
     .chkParcela:checked {accent-color: var(--ok);}
-    footer{padding:8px 12px;font-size:12px;color:var(--muted);display:flex;
+    footer{padding:10px 16px;font-size:13px;color:var(--muted);display:flex;
       justify-content:space-between;background:#fff;border-top:1px solid #e5e7eb}
     #loader{position:fixed;top:0;left:0;width:100%;height:100%;
       background:rgba(37,99,235,.6);display:none;align-items:center;
       justify-content:center;z-index:99;flex-direction:column;color:#fff;
-      font-size:16px;font-weight:600;backdrop-filter:blur(3px)}
+      font-size:18px;font-weight:600;backdrop-filter:blur(3px)}
     .spinner{border:4px solid rgba(255,255,255,.3);border-top:4px solid #fff;
-      border-radius:50%;width:36px;height:36px;animation:spin 1s linear infinite;margin-bottom:10px}
+      border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite;margin-bottom:12px}
     @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
     @media(max-width:760px){
-      table{font-size:11px}
-      th,td{padding:6px}
+      table{font-size:12px}
+      .controls{flex-direction:column;align-items:stretch}
+      th,td{padding:8px}
     }
     /* login */
     #login{position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;
       display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:200}
-    #login img{width:140px;margin-bottom:16px}
-    #login input{padding:8px 12px;font-size:14px;width:200px;text-align:center}
-    #login button{margin-top:10px;width:200px;padding:8px;font-size:14px}
-    #login small{margin-top:6px;color:var(--muted)}
+    #login img{width:180px;margin-bottom:20px}
+    #login input{padding:10px 14px;font-size:16px;width:240px;text-align:center}
+    #login button{margin-top:12px;width:240px;padding:10px;font-size:15px}
+    #login small{margin-top:8px;color:var(--muted)}
     /* multi select menu */
-    .multi{position:relative;flex:1}
-    .multi>input{min-width:150px;cursor:pointer;background:#fff}
+    .multi{position:relative}
+    .multi>input{min-width:220px;cursor:pointer;background:#fff}
     .multi-menu{position:absolute;top:110%;left:0;background:#fff;border:1px solid #e5e7eb;
-      border-radius:6px;box-shadow:var(--shadow);padding:6px;display:none;z-index:50;
-      max-height:220px;overflow:auto;min-width:150px}
-    .multi-menu label{display:flex;gap:6px;align-items:center;font-size:12px;padding:3px 5px;border-radius:4px}
+      border-radius:8px;box-shadow:var(--shadow);padding:8px;display:none;z-index:50;max-height:260px;overflow:auto;min-width:220px}
+    .multi-menu label{display:flex;gap:8px;align-items:center;font-size:13px;padding:4px 6px;border-radius:6px}
     .multi-menu label:hover{background:#f3f4f6}
     .multi.open .multi-menu{display:block}
   </style>
@@ -86,7 +85,7 @@
     <input type="password" id="senhaInput" placeholder="Digite a senha">
     <button class="btn" id="btnLogin">Entrar</button>
     <small>Esta sessão fica salva no navegador.</small>
-    <div id="loginMsg" style="color:#dc2626;margin-top:8px;font-size:12px"></div>
+    <div id="loginMsg" style="color:#dc2626;margin-top:10px;font-size:13px"></div>
   </div>
 
   <!-- Cabeçalho -->
@@ -94,7 +93,7 @@
     <img src="https://static.wixstatic.com/media/d830b0_8cec50a98bbf4775814dbfa5386585e8~mv2.png" alt="Logo">
     <div>
       <h1>Painel de pré aprovação</h1>
-      <div class="small" style="font-size:11px;color:var(--muted)">Integração ao F360</div>
+      <div class="small">Integração ao F360</div>
     </div>
     <div class="badge-top">Divergências: <span id="divCount">0</span></div>
     <div class="meta">Status: <span id="status">inicializando...</span></div>
@@ -107,26 +106,21 @@
   <!-- Card principal -->
   <div class="card">
     <div class="controls">
-      <div class="linha">
-        <select id="empresaSelect"><option value="">-- Todas as empresas --</option></select>
-        <input type="date" id="inicio" />
-        <input type="date" id="fim" />
+      <select id="empresaSelect"><option value="">-- Todas as empresas --</option></select>
+      <input type="date" id="inicio" />
+      <input type="date" id="fim" />
+      <select id="tipoDatas"><option>Emissão</option><option selected>Vencimento</option></select>
+
+      <!-- Multi select de meios -->
+      <div class="multi" id="meioMulti">
+        <input type="text" readonly placeholder="Formas de pagamento" id="meioInput" />
+        <div class="multi-menu" id="meioMenu"></div>
       </div>
-      <div class="linha">
-        <select id="tipoDatas"><option>Emissão</option><option selected>Vencimento</option></select>
-        <div class="multi" id="meioMulti">
-          <input type="text" readonly placeholder="Formas de pagamento" id="meioInput" />
-          <div class="multi-menu" id="meioMenu"></div>
-        </div>
-        <select id="statusSelect"><option value="">-- Todos os status --</option></select>
-      </div>
-      <div class="linha">
-        <button class="btn" id="btnLoad">Carregar</button>
-        <button class="btn" id="btnConferido">Confirmar conferência</button>
-      </div>
-      <div class="linha">
-        <input type="text" id="searchBox" placeholder="🔍 Buscar fornecedor..." />
-      </div>
+
+      <select id="statusSelect"><option value="">-- Todos os status --</option></select>
+      <input type="text" id="searchBox" placeholder="🔍 Buscar fornecedor..." />
+      <button class="btn" id="btnLoad">Carregar</button>
+      <button class="btn" id="btnConferido">Confirmar conferência</button>
       <div class="totais" id="totaisBox">Total: R$ 0,00</div>
     </div>
 
@@ -163,7 +157,7 @@
 
 <script>
 /* ===== LOGIN ===== */
-const SENHA_CORRETA="105898";
+const SENHA_CORRETA="12345";
 const loginEl=document.getElementById("login"), loginMsg=document.getElementById("loginMsg");
 document.getElementById("btnLogin").addEventListener("click",fazerLogin);
 document.getElementById("senhaInput").addEventListener("keydown",e=>{ if(e.key==="Enter") fazerLogin() });
@@ -187,7 +181,7 @@ const meioMenu=document.getElementById('meioMenu');
 const meioInput=document.getElementById('meioInput');
 const meioMulti=document.getElementById('meioMulti');
 
-const ENDPOINT_SHEET="https://script.google.com/macros/s/AKfycbywYO0l3SdA_3h3ebQEtePfQFS-vhNogxthryUR-ZWdOZiD3Y2WoUxqlJB0DqHLv6GWBw/exec";
+const ENDPOINT_SHEET="https://script.google.com/macros/s/AKfycbzIs72vKd3Wqt9QJv76eqRUUel1i7-tZIfNda6cFF57o12S0Ad4nGGBTHUkiSlsUZa5Mg/exec";
 
 let planilhaCache=[], apiCache=[];
 let isFetchingPlanilha=false;
@@ -489,7 +483,7 @@ document.getElementById("btnConferido").addEventListener("click",async ()=>{
 
 const hoje = new Date();
 const cincoDiasAtras = new Date();
-cincoDiasAtras.setDate(hoje.getDate() - 2); // Quantidade de dias para trás do dia atual
+cincoDiasAtras.setDate(hoje.getDate() - 3); // Quantidade de dias para trás do dia atual
 
 document.getElementById("inicio").value = cincoDiasAtras.toISOString().slice(0,10);
 document.getElementById("fim").value = hoje.toISOString().slice(0,10);
