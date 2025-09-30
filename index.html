@@ -105,7 +105,7 @@
     <div>Última atualização: <span id="lastUpdate">—</span></div>
   </footer>
 
- <script>
+<script>
   const statusEl=document.getElementById('status')
   const lastUpdateEl=document.getElementById('lastUpdate')
   const empresaSelect=document.getElementById('empresaSelect')
@@ -116,7 +116,10 @@
 
   let planilhaCache=[]
   let apiCache=[]
-  let primeiraVez=true
+
+  // === FLAGS PERSISTENTES ===
+  const flaggedIds = JSON.parse(localStorage.getItem("flaggedIds")||"[]")
+  function saveFlags(){ localStorage.setItem("flaggedIds",JSON.stringify(flaggedIds)) }
 
   // === EQUIVALÊNCIAS ===
   const equivalences = JSON.parse(localStorage.getItem('equivalences')||'{"meio":{},"fornecedor":{}}')
@@ -132,9 +135,7 @@
   function normalizeMeio(s){
     const t = simplifyText(s)
     const map = {
-      'PIX':'PIX',
-      'DEBITO AUTOMATICO':'DEBITO AUTOMATICO',
-      'DEBITO AUTOMATICO SICREDI':'DEBITO AUTOMATICO',
+      'PIX':'PIX','DEBITO AUTOMATICO':'DEBITO AUTOMATICO','DEBITO AUTOMATICO SICREDI':'DEBITO AUTOMATICO',
       'BOLETO BANCARIO':'BOLETO','BOLETO':'BOLETO',
       'TED':'TRANSFERENCIA','DOC':'TRANSFERENCIA','TRANSFERENCIA':'TRANSFERENCIA',
       'CARTAO DE CREDITO':'CARTAO CREDITO','CREDITO':'CARTAO CREDITO','CARTAO CREDITO':'CARTAO CREDITO',
@@ -155,7 +156,7 @@
     return Number(n.toFixed(2))
   }
 
-  // === CARGA DA PLANILHA (sempre atualiza) ===
+  // === PLANILHA ===
   async function carregarPlanilha(){
     try{
       const r=await fetch(ENDPOINT_SHEET)
@@ -164,7 +165,6 @@
     }catch(e){console.error("Erro planilha",e);planilhaCache=[]}
   }
 
-  // === REGRA DE DIVERGÊNCIA ===
   function verificarDivergencia(it){
     const plan=planilhaCache.find(p=>p.ID==it.ParcelaId)
     if(!plan) return {tipo:"fora"} 
@@ -181,7 +181,6 @@
     return diffs.length?{tipo:"divergente",campos:diffs}:{tipo:"ok"}
   }
 
-  // === CARGA DO F360 ===
   async function carregarParcelas(mostrarOverlay=false){
     await carregarPlanilha()
     setStatus("carregando...")
@@ -204,10 +203,7 @@
     }catch(e){
       console.error(e);setStatus("erro fetch")
     }
-    finally{
-      if(mostrarOverlay) showLoader(false)
-      primeiraVez=false
-    }
+    finally{ if(mostrarOverlay) showLoader(false) }
   }
 
   function renderTable(apiResp){
@@ -237,8 +233,12 @@
           <button class="btn-inline" style="background:var(--warn);color:#fff"
             onclick='reconferirAprendendo(${dados})'>Reconferir</button>`
       }
+      const isFlagged = flaggedIds.includes(it.ParcelaId)
       tr.innerHTML=`
-        <td><input type="checkbox" class="chkParcela" data-json='${dados}'> ${btnReconferir}</td>
+        <td>
+          <input type="checkbox" class="chkParcela" data-id="${it.ParcelaId}" data-json='${dados}' ${isFlagged?"checked":""}>
+          ${btnReconferir}
+        </td>
         <td>${it.ParcelaId||""}</td>
         <td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td>
         <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</td>
@@ -254,6 +254,16 @@
         <td>${it.DadosDoTitulo?.Observacao||""}</td>`
       tbody.appendChild(tr)
     }
+
+    // Atualiza listeners das checkboxes
+    document.querySelectorAll(".chkParcela").forEach(chk=>{
+      chk.addEventListener("change",()=>{
+        const id=chk.dataset.id
+        if(chk.checked){ if(!flaggedIds.includes(id)) flaggedIds.push(id) }
+        else{ const i=flaggedIds.indexOf(id); if(i>=0) flaggedIds.splice(i,1) }
+        saveFlags()
+      })
+    })
   }
 
   function popularEmpresas(apiResp){
@@ -300,9 +310,10 @@
 
   // Primeira carga com overlay
   carregarParcelas(true)
-  // Atualizações internas a cada 10s (sem overlay)
+  // Atualizações internas sem overlay
   setInterval(()=>carregarParcelas(false),10000)
 </script>
+
 
 </body>
 </html>
