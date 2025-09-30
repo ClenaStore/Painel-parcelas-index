@@ -23,6 +23,7 @@
     button{cursor:pointer;transition:.2s}
     button:hover{opacity:.9;transform:scale(1.02)}
     .btn{background:var(--accent);color:#fff;border:none}
+    .btn-danger{background:var(--danger);color:#fff;border:none}
     table{width:100%;border-collapse:collapse}
     th{background:#fafcff;position:sticky;top:0;z-index:2;padding:8px;font-size:13px;text-align:left;text-transform:uppercase}
     td{padding:8px;border-bottom:1px solid #f1f5f9;font-size:13px;white-space:nowrap}
@@ -35,32 +36,34 @@
     .small{font-size:13px;color:var(--muted)}
     .meta{margin-left:auto}
     footer{padding:12px 16px;font-size:13px;color:var(--muted);display:flex;justify-content:space-between}
+
+    /* bolinha piscando */
+    .pulse-dot{
+      display:inline-block;width:12px;height:12px;border-radius:50%;
+      background:var(--danger);margin-left:6px;cursor:pointer;
+      animation:pulse 1s infinite;
+    }
+    @keyframes pulse{
+      0%{transform:scale(.8);opacity:.6}
+      50%{transform:scale(1.2);opacity:1}
+      100%{transform:scale(.8);opacity:.6}
+    }
+
+    /* overlay */
     #loader{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(37,99,235,.6);
       display:none;align-items:center;justify-content:center;z-index:99;flex-direction:column;color:#fff;font-size:18px;font-weight:600;backdrop-filter:blur(3px)}
     .spinner{border:4px solid rgba(255,255,255,.3);border-top:4px solid #fff;border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite;margin-bottom:12px}
     @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
 
-    /* Bolinha piscando */
-    .bolinha {
-      width:12px; height:12px; border-radius:50%;
-      background:red; display:inline-block; margin-left:4px;
-      animation:pulse 1s infinite; cursor:pointer;
+    /* popup */
+    #popup{
+      position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+      background:#fff;padding:20px;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,.15);
+      display:none;z-index:200;width:320px;max-width:90%;
     }
-    @keyframes pulse {
-      0%{opacity:1} 50%{opacity:.3} 100%{opacity:1}
-    }
-
-    /* Popup */
-    #popup {
-      position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-      background:#fff; padding:16px; border-radius:10px;
-      box-shadow:0 6px 20px rgba(0,0,0,.25);
-      display:none; z-index:999; width:280px; font-size:14px;
-    }
-    #popup h3{margin-top:0;font-size:15px}
-    #popup button{margin-top:10px;padding:6px 10px;border:none;border-radius:6px;background:var(--accent);color:#fff;cursor:pointer}
-    #popup-close{position:absolute;top:4px;right:8px;cursor:pointer;color:#888}
-    @media(max-width:760px){table{font-size:12px}.controls{flex-direction:column;align-items:stretch}}
+    #popup h3{margin-top:0;font-size:16px;color:var(--ink)}
+    #popup pre{background:#f9fafb;padding:8px;border-radius:6px;font-size:12px;max-height:150px;overflow:auto}
+    #popup .actions{margin-top:12px;display:flex;justify-content:flex-end;gap:8px}
   </style>
 </head>
 <body>
@@ -73,10 +76,7 @@
     <div class="meta small">Status: <span id="status">inicializando...</span></div>
   </header>
 
-  <div id="loader">
-    <div class="spinner"></div>
-    Carregando dados...
-  </div>
+  <div id="loader"><div class="spinner"></div>Carregando dados...</div>
 
   <div class="card">
     <div class="controls">
@@ -116,10 +116,12 @@
 
   <!-- Popup -->
   <div id="popup">
-    <span id="popup-close">✖</span>
-    <h3>Atualizar Registro</h3>
-    <div id="popup-content"></div>
-    <button id="popup-update">Atualizar registro</button>
+    <h3>Divergência encontrada</h3>
+    <div id="popupContent"></div>
+    <div class="actions">
+      <button onclick="closePopup()">Fechar</button>
+      <button class="btn" onclick="atualizarRegistro()">Atualizar registro</button>
+    </div>
   </div>
 
 <script>
@@ -129,35 +131,27 @@ const empresaSelect=document.getElementById('empresaSelect')
 const statusSelect=document.getElementById('statusSelect')
 const loader=document.getElementById('loader')
 const countEl=document.getElementById('count')
+const popup=document.getElementById("popup")
+const popupContent=document.getElementById("popupContent")
+let popupReg=null
 
 const ENDPOINT_SHEET="https://script.google.com/macros/s/AKfycbwxsDbA0MBPE1JFJySr9LMj4U_cVzlBQFvmiwcXWG8zRJwrnN2xyUxqycDI0Bsbybl1dA/exec"
 
 let planilhaCache=[]
 let apiCache=[]
-let popupReg=null
 
 // FLAGS
 const flaggedIds=JSON.parse(localStorage.getItem("flaggedIds")||"[]")
 function saveFlags(){ localStorage.setItem("flaggedIds",JSON.stringify(flaggedIds)) }
 
-// EQUIVALÊNCIAS
-const equivalences=JSON.parse(localStorage.getItem('equivalences')||'{"meio":{},"fornecedor":{}}')
-function saveEquivalences(){ localStorage.setItem('equivalences', JSON.stringify(equivalences)) }
-
-function setStatus(t){statusEl.textContent=t}
-function showLoader(b){loader.style.display=b?"flex":"none"}
-
 // Normalizações
 function simplifyText(s){return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/\s+/g," ").trim()}
-function normalizeMeio(s){const t=simplifyText(s);const map={"PIX":"PIX","DEBITO AUTOMATICO":"DEBITO AUTOMATICO","BOLETO BANCARIO":"BOLETO","BOLETO":"BOLETO","TED":"TRANSFERENCIA","DOC":"TRANSFERENCIA","TRANSFERENCIA":"TRANSFERENCIA","CARTAO DE CREDITO":"CARTAO CREDITO","CREDITO":"CARTAO CREDITO","CARTAO DEBITO":"CARTAO DEBITO","DEBITO":"CARTAO DEBITO"};const base=map[t]||t;return equivalences.meio[base]||base}
-function normalizeFornecedor(s){
-  if(!s) return ""
-  return simplifyText(s.replace(/[’´`‘]/g,"'"))
-}
+function normalizeMeio(s){const t=simplifyText(s);const map={"PIX":"PIX","DEBITO AUTOMATICO":"DEBITO AUTOMATICO","BOLETO BANCARIO":"BOLETO","BOLETO":"BOLETO","TED":"TRANSFERENCIA","DOC":"TRANSFERENCIA","TRANSFERENCIA":"TRANSFERENCIA","CARTAO DE CREDITO":"CARTAO CREDITO","CREDITO":"CARTAO CREDITO","CARTAO DEBITO":"CARTAO DEBITO","DEBITO":"CARTAO DEBITO"};return map[t]||t}
+function normalizeFornecedor(s){return simplifyText((s||"").replace(/[’´`‘]/g,"'"))}
 function normalizeMoney(v){if(v==null||v==="")return null;const s=String(v).replace(/\s/g,"").replace(/^R\$\s*/i,"").replace(/\./g,"").replace(/,/g,".");const n=parseFloat(s);return isNaN(n)?null:Number(n.toFixed(2))}
 
 // Planilha
-async function carregarPlanilha(){try{const r=await fetch(ENDPOINT_SHEET);const j=await r.json();planilhaCache=j.data||[]}catch(e){console.error("Erro planilha",e);planilhaCache=[]}}
+async function carregarPlanilha(){try{const r=await fetch(ENDPOINT_SHEET);const j=await r.json();planilhaCache=j.data||[]}catch(e){planilhaCache=[]}}
 
 function verificarDivergencia(it){
   const plan=planilhaCache.find(p=>String(p.ID).trim()===String(it.ParcelaId).trim())
@@ -172,10 +166,10 @@ function verificarDivergencia(it){
   return diffs.length?{tipo:"divergente",campos:diffs}:{tipo:"ok"}
 }
 
-async function carregarParcelas(mostrarOverlay=false){
+async function carregarParcelas(showOverlay=false){
   await carregarPlanilha()
   setStatus("carregando...")
-  if(mostrarOverlay) showLoader(true)
+  if(showOverlay) loader.style.display="flex"
   const inicio=document.getElementById('inicio').value,fim=document.getElementById('fim').value,tipoDatas=document.getElementById('tipoDatas').value,empresa=empresaSelect.value,statusFiltro=statusSelect.value
   const params=new URLSearchParams({pagina:1,tipo:"Despesa",inicio,fim,tipoDatas})
   if(empresa)params.append("empresa",empresa)
@@ -185,8 +179,8 @@ async function carregarParcelas(mostrarOverlay=false){
     const data=await r.json();apiCache=data
     renderTable(data);popularEmpresas(data)
     setStatus("ok");lastUpdateEl.textContent=new Date().toLocaleString()
-  }catch(e){console.error(e);setStatus("erro fetch")}
-  finally{if(mostrarOverlay) showLoader(false)}
+  }catch(e){setStatus("erro fetch")}
+  finally{if(showOverlay) loader.style.display="none"}
 }
 
 function renderTable(apiResp){
@@ -205,26 +199,20 @@ function renderTable(apiResp){
     const tr=document.createElement("tr")
     const check=verificarDivergencia(it)
     if(check.tipo==="ok") tr.classList.add("ok")
-    if(check.tipo==="divergente"){tr.classList.add("divergente");tr.title="Diferenças: "+check.campos.join(", ")}
-    const dados=JSON.stringify({id:it.ParcelaId||"",empresa:it.DadosDoTitulo?.Empresa?.Nome||"",fornecedor:it.DadosDoTitulo?.ClienteFornecedor?.Nome||"",emissao:it.DadosDoTitulo?.Emissao||"",vencimento:it.Vencimento||"",valor:it.ValorBruto||"",status:it.Status||"",conta:it.Conta||"",meio:it.MeioDePagamento||"",tipoDoc:it.DadosDoTitulo?.TipoDeDocumento||"",centroCusto:it.Rateio?.[0]?.CentroDeCusto||"",planoContas:it.Rateio?.[0]?.PlanoDeContas||"",observacao:it.DadosDoTitulo?.Observacao||""})
-    
-    // bolinha só se divergência for no valor
-    let alerta = ""
-    if (check.tipo==="divergente" && check.campos.includes("Valor")) {
-      alerta = `<span class="bolinha" onclick='abrirPopup(${JSON.stringify(it).replace(/"/g,"&quot;")})'></span>`
+    if(check.tipo==="divergente"){
+      tr.classList.add("divergente")
+      tr.title="Diferenças: "+check.campos.join(", ")
     }
-
+    const dados=JSON.stringify({id:it.ParcelaId||"",empresa:it.DadosDoTitulo?.Empresa?.Nome||"",fornecedor:it.DadosDoTitulo?.ClienteFornecedor?.Nome||"",emissao:it.DadosDoTitulo?.Emissao||"",vencimento:it.Vencimento||"",valor:it.ValorBruto||"",status:it.Status||"",conta:it.Conta||"",meio:it.MeioDePagamento||"",tipoDoc:it.DadosDoTitulo?.TipoDeDocumento||"",centroCusto:it.Rateio?.[0]?.CentroDeCusto||"",planoContas:it.Rateio?.[0]?.PlanoDeContas||"",observacao:it.DadosDoTitulo?.Observacao||""})
     tr.innerHTML=`
       <td><input type="checkbox" class="chkParcela" data-id="${it.ParcelaId}" data-json='${dados}' ${flaggedIds.includes(String(it.ParcelaId))?"checked":""}></td>
-      <td>${it.ParcelaId||""} ${alerta}</td>
-      <td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td>
-      <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</td>
-      <td>${it.DadosDoTitulo?.Emissao||""}</td>
-      <td>${it.Vencimento||""}</td>
+      <td>${it.ParcelaId||""} ${check.tipo==="divergente"?'<span class="pulse-dot" onclick=\'abrirPopup('+JSON.stringify(it).replace(/"/g,"&quot;")+')\'></span>':""}</td>
+      <td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td><td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</td>
+      <td>${it.DadosDoTitulo?.Emissao||""}</td><td>${it.Vencimento||""}</td>
       <td>${it.ValorBruto?.toLocaleString?.("pt-BR",{style:"currency",currency:"BRL"})||it.ValorBruto||""}</td>
       <td>${it.Status||""}</td><td>${it.Conta||""}</td><td>${it.MeioDePagamento||""}</td>
       <td>${it.DadosDoTitulo?.TipoDeDocumento||""}</td><td>${it.Rateio?.[0]?.CentroDeCusto||""}</td>
-      <td>${it.Rateio?.[0]?.PlanoDeContas||""}</td><td>${it.DadosDoTitulo?.Observacao||""}</td>`;
+      <td>${it.Rateio?.[0]?.PlanoDeContas||""}</td><td>${it.DadosDoTitulo?.Observacao||""}</td>`
     tbody.appendChild(tr)
   }
 
@@ -255,34 +243,34 @@ function popularEmpresas(apiResp){
   empresas.forEach(e=>{const opt=document.createElement("option");opt.value=e;opt.textContent=e;empresaSelect.appendChild(opt)})
 }
 
-async function enviarParaPlanilha(tipo,registros){
-  if(!registros.length) return
-  let body={acao:tipo,registros}
-  try{await fetch(ENDPOINT_SHEET,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)})}
-  catch(e){console.error("Erro ao enviar para planilha", e)}
+// --- popup
+function abrirPopup(it){
+  popupReg=it
+  popupContent.innerHTML="<pre>"+JSON.stringify(it,null,2)+"</pre>"
+  popup.style.display="block"
+}
+function closePopup(){popup.style.display="none";popupReg=null}
+
+async function atualizarRegistro(){
+  if(!popupReg) return
+  await enviarParaPlanilha("reconferir",[{
+    id:popupReg.ParcelaId,
+    fornecedor:popupReg.DadosDoTitulo?.ClienteFornecedor?.Nome,
+    valor:popupReg.ValorBruto,
+    meio:popupReg.MeioDePagamento
+  }])
+  document.querySelectorAll(`[data-id='${popupReg.ParcelaId}']`).forEach(el=>{
+    el.closest("tr").classList.remove("divergente")
+    el.closest("tr").classList.add("ok")
+  })
+  closePopup()
 }
 
-// ===== Popup =====
-function abrirPopup(it){
-  popupReg = it;
-  const div=document.getElementById("popup-content");
-  div.innerHTML = `
-    <p><b>ID:</b> ${it.ParcelaId}</p>
-    <p><b>Fornecedor:</b> ${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</p>
-    <p><b>Valor:</b> ${it.ValorBruto?.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})||it.ValorBruto||""}</p>
-    <p><b>Vencimento:</b> ${it.Vencimento||""}</p>
-  `;
-  document.getElementById("popup").style.display="block";
+async function enviarParaPlanilha(tipo,registros){
+  if(!registros.length) return
+  try{await fetch(ENDPOINT_SHEET,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({acao:tipo,registros})})}
+  catch(e){console.error("Erro enviar",e)}
 }
-document.getElementById("popup-close").onclick=function(){
-  document.getElementById("popup").style.display="none";
-};
-document.getElementById("popup-update").onclick=async function(){
-  if(!popupReg) return;
-  await enviarParaPlanilha("reconferir", [{id:popupReg.ParcelaId}]);
-  alert("Registro atualizado!");
-  document.getElementById("popup").style.display="none";
-};
 
 // eventos globais
 document.getElementById("btnLoad").addEventListener("click",()=>carregarParcelas(true))
@@ -299,7 +287,6 @@ document.getElementById("searchBox").addEventListener("input",()=>renderTable(ap
 const hoje=new Date().toISOString().slice(0,10)
 document.getElementById("inicio").value=hoje
 document.getElementById("fim").value=hoje
-
 carregarParcelas(true)
 </script>
 </body>
