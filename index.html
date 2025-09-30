@@ -181,7 +181,7 @@ const meioMenu=document.getElementById('meioMenu');
 const meioInput=document.getElementById('meioInput');
 const meioMulti=document.getElementById('meioMulti');
 
-const ENDPOINT_SHEET="https://script.google.com/macros/s/AKfycbzeBeZyo0IWZdfZqNOYQMPfZ3EXAOzndRbejLkGbsIyavjbZix3FPceFiQGrnRgvMxpJA/exec";
+const ENDPOINT_SHEET="https://script.google.com/macros/s/AKfycbw5yP1c9mDOJgtdPn_CqLw0oyuX6gmGEyMPErqzmOWP78xCrwxjyjPEsNWGznZnpn15hA/exec";
 
 let planilhaCache=[], apiCache=[];
 let isFetchingPlanilha=false;
@@ -315,36 +315,42 @@ function renderTable(apiResp){
   const frag=document.createDocumentFragment();
   let divergentes=0;
 
-  for(const it of items){
-    const valor=normalizeMoney(it.ValorBruto);
-    total+=valor;
-    const meio=(it.MeioDePagamento||"Desconhecido");
-    porModalidade[meio]=(porModalidade[meio]||0)+valor;
+for(const it of items){
+  const valor=normalizeMoney(it.ValorBruto);
+  total+=valor;
+  const meio=(it.MeioDePagamento||"Desconhecido");
+  porModalidade[meio]=(porModalidade[meio]||0)+valor;
 
-    const tr=document.createElement("tr");
-    tr.dataset.item=JSON.stringify(it);
+  const tr=document.createElement("tr");
+  tr.dataset.item=JSON.stringify(it);
 
-    // consistência com planilha
-    const check=verificarDivergencia(it);
-    if(check.tipo==="divergente"){ tr.classList.add("divergente"); divergentes++; }
-    const id=String(it.ParcelaId);
-    if(flaggedIds.includes(id) && check.tipo==="ok") tr.classList.add("ok");
+  const id = String(it.ParcelaId || ""); // <-- faltava isso
 
-    tr.innerHTML=`
-      <td><input type="checkbox" class="chkParcela" data-id="${id}" ${flaggedIds.includes(id)?"checked":""}></td>
-      <td>${id}</td><td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td>
-      <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</td>
-      <td>${it.DadosDoTitulo?.Emissao||""}</td><td>${it.Vencimento||""}</td>
-      <td>${valor!=null?valor.toLocaleString("pt-BR",{style:"currency",currency:"BRL"}):""}</td>
-      <td>${it.Status||""}</td><td>${it.Conta||""}</td><td>${it.MeioDePagamento||""}</td>
-      <td>${it.DadosDoTitulo?.TipoDeDocumento||""}</td>
-      <td>${it.Rateio?.[0]?.CentroDeCusto||""}</td>
-      <td>${it.Rateio?.[0]?.PlanoDeContas||""}</td>
-      <td>${it.DadosDoTitulo?.Observacao||""}</td>`;
+  const check = verificarDivergencia(it);
+  tr.classList.remove("ok","divergente");
+  if(check.tipo==="ok") {
+    tr.classList.add("ok"); // verde
+  } else if(check.tipo==="divergente") {
+    tr.classList.add("divergente"); // laranja
+    divergentes++;
+  } // fora => branco
 
-    tr.addEventListener("dblclick",()=>tr.querySelector(".chkParcela").click());
-    frag.appendChild(tr);
-  }
+  tr.innerHTML=`
+    <td><input type="checkbox" class="chkParcela" data-id="${id}" ${flaggedIds.includes(id)?"checked":""}></td>
+    <td>${id}</td><td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td>
+    <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</td>
+    <td>${it.DadosDoTitulo?.Emissao||""}</td><td>${it.Vencimento||""}</td>
+    <td>${valor!=null?valor.toLocaleString("pt-BR",{style:"currency",currency:"BRL"}):""}</td>
+    <td>${it.Status||""}</td><td>${it.Conta||""}</td><td>${it.MeioDePagamento||""}</td>
+    <td>${it.DadosDoTitulo?.TipoDeDocumento||""}</td>
+    <td>${it.Rateio?.[0]?.CentroDeCusto||""}</td>
+    <td>${it.Rateio?.[0]?.PlanoDeContas||""}</td>
+    <td>${it.DadosDoTitulo?.Observacao||""}</td>`;
+
+  tr.addEventListener("dblclick",()=>tr.querySelector(".chkParcela").click());
+  frag.appendChild(tr);
+}
+
   tbody.appendChild(frag);
   divCountEl.textContent=divergentes;
 
