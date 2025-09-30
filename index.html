@@ -181,7 +181,7 @@ const meioMenu=document.getElementById('meioMenu');
 const meioInput=document.getElementById('meioInput');
 const meioMulti=document.getElementById('meioMulti');
 
-const ENDPOINT_SHEET="https://script.google.com/macros/s/AKfycbw5yP1c9mDOJgtdPn_CqLw0oyuX6gmGEyMPErqzmOWP78xCrwxjyjPEsNWGznZnpn15hA/exec";
+const ENDPOINT_SHEET="https://script.google.com/macros/s/AKfycbw9D_ALlTsJbeRsSiCoPyb2zmeIo7y86wk_vjUqtssPOm6nyKQNAa0CQhH3Nx-b35F-Fg/exec";
 
 let planilhaCache=[], apiCache=[];
 let isFetchingPlanilha=false;
@@ -216,17 +216,27 @@ async function carregarPlanilha(){
   finally{ isFetchingPlanilha=false; }
 }
 function verificarDivergencia(item){
-  const plan=planilhaCache.find(p => String(p.ID||"").trim().toUpperCase() === String(item.ParcelaId||"").trim().toUpperCase());
+  const plan = planilhaCache.find(p =>
+    String(p.ID||"").trim().toUpperCase() === String(item.ParcelaId||"").trim().toUpperCase() &&
+    simplifyText(p.Empresa||"") === simplifyText(item.DadosDoTitulo?.Empresa?.Nome||"")
+  );
   if(!plan) return {tipo:"fora"};
-  const valorPlan=normalizeMoney(plan.Valor), valorSys=normalizeMoney(item.ValorBruto);
-  const fornPlan=simplifyText(plan.Fornecedor||""), fornSys=simplifyText(item.DadosDoTitulo?.ClienteFornecedor?.Nome||"");
-  const meioPlan=simplifyText(plan["Meio Pagamento"]||""), meioSys=simplifyText(item.MeioDePagamento||"");
+
+  const valorPlan=normalizeMoney(plan.Valor);
+  const valorSys=normalizeMoney(item.ValorBruto);
+  const fornPlan=simplifyText(plan.Fornecedor||"");
+  const fornSys=simplifyText(item.DadosDoTitulo?.ClienteFornecedor?.Nome||"");
+  const meioPlan=simplifyText(plan["Meio Pagamento"]||"");
+  const meioSys=simplifyText(item.MeioDePagamento||"");
+
   const diffs=[];
   if(valorPlan!==valorSys) diffs.push("Valor");
   if(fornPlan!==fornSys) diffs.push("Fornecedor");
   if(meioPlan!==meioSys) diffs.push("Meio Pagamento");
-  return diffs.length?{tipo:"divergente",campos:diffs}:{tipo:"ok"};
+
+  return diffs.length ? {tipo:"divergente",campos:diffs} : {tipo:"ok"};
 }
+
 function atualizarDivergenciasNaView(){
   const rows=[...document.querySelectorAll("#parcelasTable tbody tr")];
   let divergentes=0;
