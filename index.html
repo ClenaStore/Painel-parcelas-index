@@ -308,6 +308,8 @@
     const hoje=new Date().toISOString().slice(0,10)
     document.getElementById("inicio").value=hoje
     document.getElementById("fim").value=hoje
+        // Atualiza a planilha a cada 10 segundos
+    setInterval(carregarParcelas, 10000)
   </script>
 </body>
 </html>
