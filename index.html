@@ -224,18 +224,25 @@ function verificarDivergencia(item){
 
   const valorPlan=normalizeMoney(plan.Valor);
   const valorSys=normalizeMoney(item.ValorBruto);
+
   const fornPlan=simplifyText(plan.Fornecedor||"");
   const fornSys=simplifyText(item.DadosDoTitulo?.ClienteFornecedor?.Nome||"");
-  const meioPlan=simplifyText(plan["Meio Pagamento"]||"");
-  const meioSys=simplifyText(item.MeioDePagamento||"");
+
+  const emissaoPlan=(plan.Emissão||plan.Emissao||"").split("T")[0];
+  const emissaoSys=(item.DadosDoTitulo?.Emissao||"").split("T")[0];
+
+  const vencPlan=(plan.Vencimento||"").split("T")[0];
+  const vencSys=(item.Vencimento||"").split("T")[0];
 
   const diffs=[];
   if(valorPlan!==valorSys) diffs.push("Valor");
   if(fornPlan!==fornSys) diffs.push("Fornecedor");
-  if(meioPlan!==meioSys) diffs.push("Meio Pagamento");
+  if(emissaoPlan!==emissaoSys) diffs.push("Emissão");
+  if(vencPlan!==vencSys) diffs.push("Vencimento");
 
   return diffs.length ? {tipo:"divergente",campos:diffs} : {tipo:"ok"};
 }
+
 
 function atualizarDivergenciasNaView(){
   const rows=[...document.querySelectorAll("#parcelasTable tbody tr")];
