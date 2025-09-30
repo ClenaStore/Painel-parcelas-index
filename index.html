@@ -212,65 +212,73 @@ tr.divergente:hover{background:#fff3cd !important} /* mantém amarelo */
     finally{ if(mostrarOverlay) showLoader(false) }
   }
 
-  function renderTable(apiResp){
-    const tbody=document.querySelector("#parcelasTable tbody")
-    tbody.innerHTML=""
-    let items=(apiResp.Result&&apiResp.Result.Parcelas)||[]
-    const search=document.getElementById("searchBox").value.toLowerCase()
-    if(search) items=items.filter(it=>(it.DadosDoTitulo?.ClienteFornecedor?.Nome||"").toLowerCase().includes(search))
-    if(!items.length){tbody.innerHTML="<tr><td colspan=14>Nenhuma parcela</td></tr>";return}
-    for(const it of items){
-      const tr=document.createElement("tr")
-      const check=verificarDivergencia(it)
-      if(check.tipo==="ok") tr.classList.add("ok")
-      if(check.tipo==="divergente"){ tr.classList.add("divergente"); tr.title="Diferenças: "+check.campos.join(", ") }
-      const dados=JSON.stringify({
-        id:it.ParcelaId||"",empresa:it.DadosDoTitulo?.Empresa?.Nome||"",
-        fornecedor:it.DadosDoTitulo?.ClienteFornecedor?.Nome||"",
-        emissao:it.DadosDoTitulo?.Emissao||"",vencimento:it.Vencimento||"",
-        valor:it.ValorBruto||"",status:it.Status||"",conta:it.Conta||"",
-        meio:it.MeioDePagamento||"",tipoDoc:it.DadosDoTitulo?.TipoDeDocumento||"",
-        centroCusto:it.Rateio?.[0]?.CentroDeCusto||"",planoContas:it.Rateio?.[0]?.PlanoDeContas||"",
-        observacao:it.DadosDoTitulo?.Observacao||""
-      })
-      let btnReconferir=""
-      if(check.tipo==="divergente"){
-        btnReconferir=`<span class="badge">Diferença</span>
-          <button class="btn-inline" style="background:var(--warn);color:#fff"
-            onclick='reconferirAprendendo(${dados})'>Reconferir</button>`
-      }
-      const isFlagged = flaggedIds.includes(it.ParcelaId)
-      tr.innerHTML=`
-        <td>
-          <input type="checkbox" class="chkParcela" data-id="${it.ParcelaId}" data-json='${dados}' ${isFlagged?"checked":""}>
-          ${btnReconferir}
-        </td>
-        <td>${it.ParcelaId||""}</td>
-        <td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td>
-        <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</td>
-        <td>${it.DadosDoTitulo?.Emissao||""}</td>
-        <td>${it.Vencimento||""}</td>
-        <td>${it.ValorBruto?.toLocaleString?.("pt-BR",{style:"currency",currency:"BRL"})||it.ValorBruto||""}</td>
-        <td>${it.Status||""}</td>
-        <td>${it.Conta||""}</td>
-        <td>${it.MeioDePagamento||""}</td>
-        <td>${it.DadosDoTitulo?.TipoDeDocumento||""}</td>
-        <td>${it.Rateio?.[0]?.CentroDeCusto||""}</td>
-        <td>${it.Rateio?.[0]?.PlanoDeContas||""}</td>
-        <td>${it.DadosDoTitulo?.Observacao||""}</td>`
-      tbody.appendChild(tr)
-    }
-
-    // Atualiza listeners das checkboxes
-    document.querySelectorAll(".chkParcela").forEach(chk=>{
-      chk.addEventListener("change",()=>{
-        const id=chk.dataset.id
-        if(chk.checked){ if(!flaggedIds.includes(id)) flaggedIds.push(id) }
-        else{ const i=flaggedIds.indexOf(id); if(i>=0) flaggedIds.splice(i,1) }
-        saveFlags()
-      })
+function renderTable(apiResp){
+  const tbody=document.querySelector("#parcelasTable tbody")
+  tbody.innerHTML=""
+  let items=(apiResp.Result&&apiResp.Result.Parcelas)||[]
+  const search=document.getElementById("searchBox").value.toLowerCase()
+  if(search) items=items.filter(it=>(it.DadosDoTitulo?.ClienteFornecedor?.Nome||"").toLowerCase().includes(search))
+  if(!items.length){tbody.innerHTML="<tr><td colspan=14>Nenhuma parcela</td></tr>";return}
+  
+  for(const it of items){
+    const tr=document.createElement("tr")
+    const check=verificarDivergencia(it)
+    if(check.tipo==="ok") tr.classList.add("ok")
+    if(check.tipo==="divergente"){ tr.classList.add("divergente"); tr.title="Diferenças: "+check.campos.join(", ") }
+    
+    const dados=JSON.stringify({
+      id:it.ParcelaId||"",empresa:it.DadosDoTitulo?.Empresa?.Nome||"",
+      fornecedor:it.DadosDoTitulo?.ClienteFornecedor?.Nome||"",
+      emissao:it.DadosDoTitulo?.Emissao||"",vencimento:it.Vencimento||"",
+      valor:it.ValorBruto||"",status:it.Status||"",conta:it.Conta||"",
+      meio:it.MeioDePagamento||"",tipoDoc:it.DadosDoTitulo?.TipoDeDocumento||"",
+      centroCusto:it.Rateio?.[0]?.CentroDeCusto||"",planoContas:it.Rateio?.[0]?.PlanoDeContas||"",
+      observacao:it.DadosDoTitulo?.Observacao||""
     })
+
+    const isFlagged = flaggedIds.includes(it.ParcelaId)
+    tr.innerHTML=`
+      <td>
+        <input type="checkbox" class="chkParcela" data-id="${it.ParcelaId}" data-json='${dados}' ${isFlagged?"checked":""}>
+      </td>
+      <td>${it.ParcelaId||""}</td>
+      <td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td>
+      <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</td>
+      <td>${it.DadosDoTitulo?.Emissao||""}</td>
+      <td>${it.Vencimento||""}</td>
+      <td>${it.ValorBruto?.toLocaleString?.("pt-BR",{style:"currency",currency:"BRL"})||it.ValorBruto||""}</td>
+      <td>${it.Status||""}</td>
+      <td>${it.Conta||""}</td>
+      <td>${it.MeioDePagamento||""}</td>
+      <td>${it.DadosDoTitulo?.TipoDeDocumento||""}</td>
+      <td>${it.Rateio?.[0]?.CentroDeCusto||""}</td>
+      <td>${it.Rateio?.[0]?.PlanoDeContas||""}</td>
+      <td>${it.DadosDoTitulo?.Observacao||""}</td>`
+    tbody.appendChild(tr)
   }
+
+  // Listener automático no checkbox
+  document.querySelectorAll(".chkParcela").forEach(chk=>{
+    chk.addEventListener("change",async ()=>{
+      const reg=JSON.parse(chk.dataset.json)
+      const tr=chk.closest("tr")
+      if(chk.checked){
+        if(!flaggedIds.includes(reg.id)) flaggedIds.push(reg.id)
+        saveFlags()
+        tr.classList.add("ok")
+        chk.style.accentColor="green"
+        await enviarParaPlanilha("conferir",[reg])
+      }else{
+        const i=flaggedIds.indexOf(reg.id)
+        if(i>=0) flaggedIds.splice(i,1)
+        saveFlags()
+        tr.classList.remove("ok")
+        await enviarParaPlanilha("excluir",[reg])
+      }
+    })
+  })
+}
+
 
   function popularEmpresas(apiResp){
     const items=(apiResp.Result&&apiResp.Result.Parcelas)||[]
@@ -293,48 +301,19 @@ tr.divergente:hover{background:#fff3cd !important} /* mantém amarelo */
     await enviarParaPlanilha("reconferir",[reg])
   }
 
-async function enviarParaPlanilha(tipo, registrosDiretos){
-  let selecionados=registrosDiretos||[...document.querySelectorAll(".chkParcela:checked")].map(chk=>JSON.parse(chk.dataset.json))
-  if(!selecionados.length){alert("Selecione ao menos uma parcela!");return}
-  let body={acao:tipo,registros:selecionados}
-
-  // deixa prévia verde
-  selecionados.forEach(reg=>{
-    const tr=document.querySelector(`input[data-id="${reg.id}"]`)?.closest("tr")
-    if(tr){ 
-      tr.classList.add("ok")
-      tr.style.opacity="0.6" // prévia (meio transparente)
-    }
-  })
-
+async function enviarParaPlanilha(tipo, registros){
+  if(!registros.length) return
+  let body={acao:tipo,registros}
   try{
-    const r=await fetch(ENDPOINT_SHEET,{
+    await fetch(ENDPOINT_SHEET,{
       method:"POST",
       headers:{"Content-Type":"text/plain;charset=utf-8"},
       body:JSON.stringify(body)
     })
-    const resp=await r.json()
-
-    if(resp.success){
-      // confirmação definitiva
-      selecionados.forEach(reg=>{
-        const tr=document.querySelector(`input[data-id="${reg.id}"]`)?.closest("tr")
-        if(tr){ 
-          tr.classList.add("ok")
-          tr.style.opacity="1" // volta normal = verde definitivo
-          const chk=tr.querySelector("input.chkParcela")
-          if(chk){ chk.checked=true; chk.style.accentColor="green" } // checkbox verde
-        }
-      })
-    }else{
-      alert("Erro: "+JSON.stringify(resp))
-    }
   }catch(e){
-    alert("Erro GAS");console.error(e)
+    console.error("Erro ao enviar para planilha", e)
   }
 }
-
-
   document.getElementById("btnLoad").addEventListener("click",()=>carregarParcelas(true))
   document.getElementById("btnConferido").addEventListener("click",()=>enviarParaPlanilha("conferir"))
   document.getElementById("btnExcluir").addEventListener("click",()=>enviarParaPlanilha("excluir"))
