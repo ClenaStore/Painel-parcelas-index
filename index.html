@@ -511,22 +511,37 @@ async function enviarParaPlanilha(acao,registros){
 
 /* ===== AÇÕES ===== */
 document.getElementById("btnLoad").addEventListener("click",()=>carregarParcelas(true));
-document.getElementById("btnConferido").addEventListener("click",async ()=>{
+document.getElementById("btnConferido").addEventListener("click", async ()=>{
   const regs=[];
-  document.querySelectorAll(".chkParcela:checked").forEach(chk=>{
-    const it=JSON.parse(chk.closest("tr").dataset.item||"{}");
+  document.querySelectorAll("#parcelasTable tbody tr").forEach(tr=>{
+    const it = JSON.parse(tr.dataset.item||"{}");
+    const id = String(it.ParcelaId||"");
+
+    // se já está na planilha, pula
+    const jaExiste = planilhaCache.some(p => String(p.ID||p.Numero||"") === id);
+    if(jaExiste) return;
+
     regs.push({
-      id:it.ParcelaId||"", empresa:it.DadosDoTitulo?.Empresa?.Nome||"",
+      id,
+      empresa:it.DadosDoTitulo?.Empresa?.Nome||"",
       fornecedor:it.DadosDoTitulo?.ClienteFornecedor?.Nome||"",
-      emissao:it.DadosDoTitulo?.Emissao||"", vencimento:it.Vencimento||"",
-      valor:it.ValorBruto||"", status:it.Status||"", conta:it.Conta||"",
-      meio:it.MeioDePagamento||"", tipoDoc:it.DadosDoTitulo?.TipoDeDocumento||"",
-      centroCusto:it.Rateio?.[0]?.CentroDeCusto||"", planoContas:it.Rateio?.[0]?.PlanoDeContas||"",
+      emissao:it.DadosDoTitulo?.Emissao||"",
+      vencimento:it.Vencimento||"",
+      valor:it.ValorBruto||"",
+      status:it.Status||"",
+      conta:it.Conta||"",
+      meio:it.MeioDePagamento||"",
+      tipoDoc:it.DadosDoTitulo?.TipoDeDocumento||"",
+      centroCusto:it.Rateio?.[0]?.CentroDeCusto||"",
+      planoContas:it.Rateio?.[0]?.PlanoDeContas||"",
       observacao:it.DadosDoTitulo?.Observacao||""
     });
   });
-  if(regs.length) await enviarParaPlanilha("conferir",regs);
-  carregarPlanilha();
+
+  if(regs.length) {
+    await enviarParaPlanilha("conferir", regs);
+    carregarPlanilha();
+  }
 });
 
 const hoje = new Date();
