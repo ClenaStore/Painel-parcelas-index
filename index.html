@@ -222,7 +222,7 @@ function verificarDivergencia(item){
   );
   if(!plan) return {tipo:"fora"};
 
-  const valorPlan=normalizeMoney(plan.Valor);
+  const valorPlan=normalizeMoney(plan["Valor Bruto"] || plan.Valor);
   const valorSys=normalizeMoney(item.ValorBruto);
 
   const fornPlan=simplifyText(plan.Fornecedor||"");
