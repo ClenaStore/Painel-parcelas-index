@@ -191,7 +191,13 @@ function renderTable(apiResp){
       <td>${it.Status||""}</td><td>${it.Conta||""}</td><td>${it.MeioDePagamento||""}</td>
       <td>${it.DadosDoTitulo?.TipoDeDocumento||""}</td><td>${it.Rateio?.[0]?.CentroDeCusto||""}</td>
       <td>${it.Rateio?.[0]?.PlanoDeContas||""}</td><td>${it.DadosDoTitulo?.Observacao||""}</td>
-      <td><button class="btn-inline" onclick='reconferirAprendendo(${JSON.stringify(it).replace(/"/g,"&quot;")})'>🔄</button></td>`
+<td>
+  ${check.tipo==="divergente" 
+      ? `<button class="btn-inline" title="Atualizar planilha" 
+          onclick='reconferirAprendendo(${JSON.stringify(it).replace(/"/g,"&quot;")})'>🔄 Atualizar</button>` 
+      : ""}
+</td>
+
     tbody.appendChild(tr)
   }
 
