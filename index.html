@@ -6,43 +6,44 @@
   <title>Painel • Conferência de Parcelas (F360)</title>
   <style>
     :root{
-      --bg:#f4f6f8; --card:#fff; --ink:#0f1724; --muted:#6b7280;
+      --bg:#f9fafb; --card:#fff; --ink:#0f1724; --muted:#6b7280;
       --accent:#2563eb; --danger:#dc2626; --warn:#f59e0b; --ok:#16a34a;
-      --radius:12px; --shadow:0 4px 14px rgba(15,23,42,.08);
+      --radius:10px; --shadow:0 4px 14px rgba(15,23,42,.08);
     }
-    *{box-sizing:border-box}
-    html,body{height:100%;margin:0}
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%}
     body{font-family:Inter,system-ui,Arial;background:var(--bg);color:var(--ink);
       display:flex;flex-direction:column;overflow:hidden}
     header{display:flex;align-items:center;gap:12px;padding:16px;background:#fff;
-      border-bottom:1px solid #e5e7eb;position:sticky;top:0;z-index:10;box-shadow:var(--shadow)}
+      border-bottom:1px solid #e5e7eb;z-index:10;box-shadow:var(--shadow)}
     header img{height:36px}
     h1{margin:0;font-size:18px;font-weight:600}
     .badge-top{margin-left:16px;background:var(--warn);color:#fff;font-size:12px;
       padding:4px 10px;border-radius:16px;font-weight:600}
     .meta{margin-left:auto;font-size:13px;color:var(--muted)}
     .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
-      padding:16px;margin:16px;display:flex;flex-direction:column;flex:1;overflow:hidden}
-    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+      padding:12px 16px;margin:12px;display:flex;flex-direction:column;flex:1;overflow:hidden}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
     input,select,button{
       padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:14px;
       background:#fff;transition:.2s
     }
-    input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(37,99,235,.15)}
+    input:focus,select:focus{outline:none;border-color:var(--accent);
+      box-shadow:0 0 0 2px rgba(37,99,235,.15)}
     button{cursor:pointer}
     .btn{background:var(--accent);color:#fff;border:none}
     .btn:hover{opacity:.9;transform:scale(1.02)}
     #tableWrap{flex:1;overflow:auto}
     table{width:100%;border-collapse:separate;border-spacing:0 4px}
-    th{background:#f9fafb;position:sticky;top:0;z-index:5;padding:10px;font-size:12px;
-      text-align:left;text-transform:uppercase;font-weight:600;color:var(--muted)}
+    th{background:#f3f4f6;position:sticky;top:0;z-index:5;padding:10px;font-size:12px;
+      text-align:left;text-transform:uppercase;font-weight:600;color:var(--muted);cursor:grab}
     td{padding:10px;background:#fff;border-bottom:1px solid #f1f5f9;font-size:13px;
       white-space:nowrap;border-top:1px solid #f1f5f9;transition:.2s}
     tr.ok td{background:#ecfdf5}
     tr.divergente td{background:#fff8eb;animation:pulse 1.5s infinite alternate}
     tr:hover td{background:#f3f4f6}
     .chkParcela:checked {accent-color: var(--ok);}
-    footer{padding:12px 16px;font-size:13px;color:var(--muted);display:flex;
+    footer{padding:10px 16px;font-size:13px;color:var(--muted);display:flex;
       justify-content:space-between;background:#fff;border-top:1px solid #e5e7eb}
     #loader{position:fixed;top:0;left:0;width:100%;height:100%;
       background:rgba(37,99,235,.6);display:none;align-items:center;
@@ -91,10 +92,21 @@
     <div id="tableWrap">
       <table id="parcelasTable">
         <thead>
-          <tr>
-            <th></th><th>ID</th><th>Empresa</th><th>Fornecedor</th><th>Emissão</th><th>Vencimento</th>
-            <th>Valor</th><th>Status</th><th>Conta</th><th>Meio Pagamento</th>
-            <th>Tipo Doc</th><th>Centro de Custo</th><th>Plano de Contas</th><th>Observação</th>
+          <tr id="headerRow">
+            <th data-col="sel"></th>
+            <th data-col="id">ID</th>
+            <th data-col="empresa">Empresa</th>
+            <th data-col="fornecedor">Fornecedor</th>
+            <th data-col="emissao">Emissão</th>
+            <th data-col="vencimento">Vencimento</th>
+            <th data-col="valor">Valor</th>
+            <th data-col="status">Status</th>
+            <th data-col="conta">Conta</th>
+            <th data-col="meio">Meio Pagamento</th>
+            <th data-col="tipoDoc">Tipo Doc</th>
+            <th data-col="centroCusto">Centro de Custo</th>
+            <th data-col="planoContas">Plano de Contas</th>
+            <th data-col="obs">Observação</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -115,6 +127,7 @@ const statusSelect=document.getElementById('statusSelect')
 const loader=document.getElementById('loader')
 const countEl=document.getElementById('count')
 const divCountEl=document.getElementById('divCount')
+const headerRow=document.getElementById('headerRow')
 
 const ENDPOINT_SHEET="https://script.google.com/macros/s/AKfycbwxsDbA0MBPE1JFJySr9LMj4U_cVzlBQFvmiwcXWG8zRJwrnN2xyUxqycDI0Bsbybl1dA/exec"
 
@@ -122,15 +135,15 @@ let planilhaCache=[]
 let apiCache=[]
 const flaggedIds=JSON.parse(localStorage.getItem("flaggedIds")||"[]")
 function saveFlags(){ localStorage.setItem("flaggedIds",JSON.stringify(flaggedIds)) }
-const equivalences=JSON.parse(localStorage.getItem('equivalences')||'{"meio":{},"fornecedor":{}}')
-function saveEquivalences(){ localStorage.setItem('equivalences', JSON.stringify(equivalences)) }
+
+// salvar ordem colunas
+let colOrder=JSON.parse(localStorage.getItem("colOrder")||"null")
+function saveColOrder(){localStorage.setItem("colOrder",JSON.stringify(colOrder))}
 
 function setStatus(t){statusEl.textContent=t}
 function showLoader(b){loader.style.display=b?"flex":"none"}
 
 function simplifyText(s){return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/\s+/g," ").trim()}
-function normalizeMeio(s){const t=simplifyText(s);const map={"PIX":"PIX","DEBITO AUTOMATICO":"DEBITO AUTOMATICO","BOLETO":"BOLETO","TED":"TRANSFERENCIA","DOC":"TRANSFERENCIA","TRANSFERENCIA":"TRANSFERENCIA","CARTAO DE CREDITO":"CARTAO CREDITO","CREDITO":"CARTAO CREDITO","CARTAO DEBITO":"CARTAO DEBITO","DEBITO":"CARTAO DEBITO"};const base=map[t]||t;return equivalences.meio[base]||base}
-function normalizeFornecedor(s){if(!s) return "";return simplifyText(s.replace(/[’´`‘]/g,"'"))}
 function normalizeMoney(v){if(v==null||v==="")return null;const s=String(v).replace(/\s/g,"").replace(/^R\$\s*/i,"").replace(/\./g,"").replace(/,/g,".");const n=parseFloat(s);return isNaN(n)?null:Number(n.toFixed(2))}
 
 async function carregarPlanilha(){try{const r=await fetch(ENDPOINT_SHEET);const j=await r.json();planilhaCache=j.data||[]}catch(e){planilhaCache=[]}}
@@ -139,8 +152,8 @@ function verificarDivergencia(it){
   const plan=planilhaCache.find(p=>String(p.ID).trim()===String(it.ParcelaId).trim())
   if(!plan) return {tipo:"fora"}
   const valorPlan=normalizeMoney(plan.Valor), valorSys=normalizeMoney(it.ValorBruto)
-  const fornPlan=normalizeFornecedor(plan.Fornecedor), fornSys=normalizeFornecedor(it.DadosDoTitulo?.ClienteFornecedor?.Nome)
-  const meioPlan=normalizeMeio(plan["Meio Pagamento"]), meioSys=normalizeMeio(it.MeioDePagamento)
+  const fornPlan=(plan.Fornecedor||"").toUpperCase(), fornSys=(it.DadosDoTitulo?.ClienteFornecedor?.Nome||"").toUpperCase()
+  const meioPlan=(plan["Meio Pagamento"]||"").toUpperCase(), meioSys=(it.MeioDePagamento||"").toUpperCase()
   const diffs=[]
   if(valorPlan!==valorSys) diffs.push("Valor")
   if(fornPlan!==fornSys) diffs.push("Fornecedor")
@@ -193,6 +206,9 @@ function renderTable(apiResp){
       <td>${it.DadosDoTitulo?.TipoDeDocumento||""}</td><td>${it.Rateio?.[0]?.CentroDeCusto||""}</td>
       <td>${it.Rateio?.[0]?.PlanoDeContas||""}</td><td>${it.DadosDoTitulo?.Observacao||""}</td>`
     tbody.appendChild(tr)
+
+    // duplo clique
+    tr.addEventListener("dblclick",()=>{tr.querySelector(".chkParcela").click()})
   }
   divCountEl.textContent=divergentes
 
@@ -209,6 +225,8 @@ function renderTable(apiResp){
         saveFlags();tr.classList.remove("ok")
         await enviarParaPlanilha("excluir",[reg])
       }
+      // atualizar em segundo plano
+      carregarPlanilha()
     })
   })
 }
@@ -227,7 +245,7 @@ async function enviarParaPlanilha(tipo,registros){
   if(!registros.length) return
   let body={acao:tipo,registros}
   try{await fetch(ENDPOINT_SHEET,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)})}
-  catch(e){console.error("Erro ao enviar para planilha", e)}
+  catch(e){console.error("Erro ao enviar", e)}
 }
 
 document.getElementById("btnLoad").addEventListener("click",()=>carregarParcelas(true))
@@ -241,11 +259,38 @@ document.getElementById("btnConferido").addEventListener("click",()=>{
 })
 document.getElementById("searchBox").addEventListener("input",()=>renderTable(apiCache))
 
+// drag para reordenar colunas
+let dragSrc=null
+headerRow.querySelectorAll("th").forEach(th=>{
+  th.draggable=true
+  th.addEventListener("dragstart",e=>{dragSrc=th;e.dataTransfer.effectAllowed="move"})
+  th.addEventListener("dragover",e=>{e.preventDefault()})
+  th.addEventListener("drop",e=>{
+    e.preventDefault()
+    if(dragSrc && dragSrc!==th){
+      headerRow.insertBefore(dragSrc,th.nextSibling)
+      colOrder=[...headerRow.children].map(c=>c.dataset.col)
+      saveColOrder()
+      carregarParcelas()
+    }
+  })
+})
+
+// restaurar ordem
+if(colOrder){
+  colOrder.forEach(col=>{
+    const th=headerRow.querySelector(`[data-col="${col}"]`)
+    if(th) headerRow.appendChild(th)
+  })
+}
+
 const hoje=new Date().toISOString().slice(0,10)
 document.getElementById("inicio").value=hoje
 document.getElementById("fim").value=hoje
 
 carregarParcelas(true)
+// atualização periódica em segundo plano
+setInterval(()=>carregarParcelas(false),30000)
 </script>
 </body>
 </html>
