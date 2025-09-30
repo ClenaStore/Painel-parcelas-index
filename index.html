@@ -521,6 +521,14 @@ document.getElementById("btnConferido").addEventListener("click", async ()=>{
     const jaExiste = planilhaCache.some(p => String(p.ID||p.Numero||"") === id);
     if(jaExiste) return;
 
+    // marca visualmente
+    const chk = tr.querySelector(".chkParcela");
+    if(chk && !chk.checked) chk.checked = true;
+
+    if(!flaggedIds.includes(id)) flaggedIds.push(id);
+    tr.classList.remove("divergente");
+    tr.classList.add("ok");
+
     regs.push({
       id,
       empresa:it.DadosDoTitulo?.Empresa?.Nome||"",
@@ -539,10 +547,12 @@ document.getElementById("btnConferido").addEventListener("click", async ()=>{
   });
 
   if(regs.length) {
+    saveFlags(); // salva no localStorage
     await enviarParaPlanilha("conferir", regs);
     carregarPlanilha();
   }
 });
+
 
 const hoje = new Date();
 const amanha = new Date();
