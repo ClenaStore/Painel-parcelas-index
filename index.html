@@ -123,7 +123,13 @@ function showLoader(b){loader.style.display=b?"flex":"none"}
 // Normalizações
 function simplifyText(s){return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/\s+/g," ").trim()}
 function normalizeMeio(s){const t=simplifyText(s);const map={"PIX":"PIX","DEBITO AUTOMATICO":"DEBITO AUTOMATICO","BOLETO BANCARIO":"BOLETO","BOLETO":"BOLETO","TED":"TRANSFERENCIA","DOC":"TRANSFERENCIA","TRANSFERENCIA":"TRANSFERENCIA","CARTAO DE CREDITO":"CARTAO CREDITO","CREDITO":"CARTAO CREDITO","CARTAO DEBITO":"CARTAO DEBITO","DEBITO":"CARTAO DEBITO"};const base=map[t]||t;return equivalences.meio[base]||base}
-function normalizeFornecedor(s){const base=simplifyText(s);return equivalences.fornecedor[base]||base}
+function normalizeFornecedor(s){
+  if(!s) return ""
+  return simplifyText(
+    s.replace(/[’´`‘]/g,"'") // converte qualquer apóstrofo estranho em simples '
+  )
+}
+
 function normalizeMoney(v){if(v==null||v==="")return null;const s=String(v).replace(/\s/g,"").replace(/^R\$\s*/i,"").replace(/\./g,"").replace(/,/g,".");const n=parseFloat(s);return isNaN(n)?null:Number(n.toFixed(2))}
 
 // Planilha
