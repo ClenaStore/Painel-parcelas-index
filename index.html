@@ -24,7 +24,6 @@
     .perfil{display:flex;align-items:center;gap:8px;margin-left:16px}
     .perfil img{width:45px;height:45px;border-radius:50%}
     .perfil span{font-size:13px;color:var(--ink);font-weight:500}
-    tr.fora td { background:#fff; } /* branco mesmo */
     .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
       padding:12px 16px;margin:12px;display:flex;flex-direction:column;flex:1;overflow:hidden}
     .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
@@ -182,7 +181,7 @@ const meioMenu=document.getElementById('meioMenu');
 const meioInput=document.getElementById('meioInput');
 const meioMulti=document.getElementById('meioMulti');
 
-const ENDPOINT_SHEET="https://script.google.com/macros/s/AKfycbyohYeflmIL11vV4LX-VUwP_o53rTwYso_4vrIbvjuwg_cKKQr4wFqeIayIQPC9BuHVjg/exec";
+const ENDPOINT_SHEET="https://script.google.com/macros/s/AKfycbzIs72vKd3Wqt9QJv76eqRUUel1i7-tZIfNda6cFF57o12S0Ad4nGGBTHUkiSlsUZa5Mg/exec";
 
 let planilhaCache=[], apiCache=[];
 let isFetchingPlanilha=false;
@@ -235,22 +234,13 @@ function atualizarDivergenciasNaView(){
     const it=JSON.parse(tr.dataset.item||"null");
     if(!it) return;
     const check=verificarDivergencia(it);
-    tr.classList.remove("divergente","ok","fora");
-
-    if(check.tipo==="divergente"){
-      tr.classList.add("divergente");
-      divergentes++;
-    }
-    if(check.tipo==="fora"){
-      tr.classList.add("fora"); // classe só pra diferenciar
-    }
-    if(check.tipo==="ok"){
-      tr.classList.add("ok");
-    }
+    tr.classList.remove("divergente");
+    if(check.tipo==="divergente"){ tr.classList.add("divergente"); divergentes++; }
+    const id=String(it.ParcelaId);
+    if(flaggedIds.includes(id)) tr.classList.add("ok"); else tr.classList.remove("ok");
   });
   divCountEl.textContent=divergentes;
 }
-
 
 /* ===== API + RENDER ===== */
 async function carregarParcelas(mostrarOverlay=false){
