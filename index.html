@@ -191,6 +191,7 @@ function renderTable(apiResp){
       <td>${it.Status||""}</td><td>${it.Conta||""}</td><td>${it.MeioDePagamento||""}</td>
       <td>${it.DadosDoTitulo?.TipoDeDocumento||""}</td><td>${it.Rateio?.[0]?.CentroDeCusto||""}</td>
       <td>${it.Rateio?.[0]?.PlanoDeContas||""}</td><td>${it.DadosDoTitulo?.Observacao||""}</td>
+      <td><button class="btn-inline" onclick='reconferirAprendendo(${JSON.stringify(it).replace(/"/g,"&quot;")})'>🔄</button></td>`
     tbody.appendChild(tr)
   }
 
@@ -221,6 +222,18 @@ function popularEmpresas(apiResp){
   empresas.forEach(e=>{const opt=document.createElement("option");opt.value=e;opt.textContent=e;empresaSelect.appendChild(opt)})
 }
 
+async function reconferirAprendendo(it){
+  const reg={id:it.ParcelaId||"",fornecedor:it.DadosDoTitulo?.ClienteFornecedor?.Nome||"",meio:it.MeioDePagamento||""}
+  const existente=planilhaCache.find(p=>p.ID==reg.id)
+  if(existente){
+    const planFornecedor=normalizeFornecedor(existente.Fornecedor), sysFornecedor=normalizeFornecedor(reg.fornecedor)
+    if(planFornecedor!==sysFornecedor){equivalences.fornecedor[planFornecedor]=sysFornecedor}
+    const planMeio=normalizeMeio(existente["Meio Pagamento"]), sysMeio=normalizeMeio(reg.meio)
+    if(planMeio!==sysMeio){equivalences.meio[planMeio]=sysMeio}
+    saveEquivalences()
+  }
+  await enviarParaPlanilha("reconferir",[reg])
+}
 
 async function enviarParaPlanilha(tipo,registros){
   if(!registros.length) return
