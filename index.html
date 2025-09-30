@@ -30,13 +30,17 @@
     tr.ok{background:#d1fae5}        /* verde */
     tr.divergente{background:#fff3cd} /* amarelo */
     tr:hover{background:#f9fafb}
-    tr.ok:hover{background:#d1fae5 !important}
-    tr.divergente:hover{background:#fff3cd !important}
-    .chkParcela:checked { accent-color: var(--ok); }
+tr.ok:hover{background:#d1fae5 !important}        /* mantém verde */
+tr.divergente:hover{background:#fff3cd !important} /* mantém amarelo */
+.chkParcela:checked {
+  accent-color: var(--ok); /* verde */
+}
+
     .small{font-size:13px;color:var(--muted)}
     .meta{margin-left:auto}
     footer{padding:12px 16px;font-size:13px;color:var(--muted);display:flex;justify-content:space-between}
     .btn-inline{margin-left:6px;padding:2px 6px;font-size:11px;border-radius:6px}
+    .badge{display:inline-block;background:var(--warn);color:#fff;padding:2px 6px;font-size:11px;border-radius:6px;margin-left:4px}
     /* Overlay azul */
     #loader{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(37,99,235,.6);
       display:none;align-items:center;justify-content:center;z-index:99;flex-direction:column;color:#fff;font-size:18px;font-weight:600}
@@ -123,8 +127,40 @@
   const flaggedIds = JSON.parse(localStorage.getItem("flaggedIds")||"[]")
   function saveFlags(){ localStorage.setItem("flaggedIds",JSON.stringify(flaggedIds)) }
 
+  // === EQUIVALÊNCIAS ===
+  const equivalences = JSON.parse(localStorage.getItem('equivalences')||'{"meio":{},"fornecedor":{}}')
+  function saveEquivalences(){ localStorage.setItem('equivalences', JSON.stringify(equivalences)) }
+
   function setStatus(t){statusEl.textContent=t}
   function showLoader(b){loader.style.display=b?"flex":"none"}
+
+  function simplifyText(s){
+    if(s==null) return ''
+    return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s+/g,' ').trim()
+  }
+  function normalizeMeio(s){
+    const t = simplifyText(s)
+    const map = {
+      'PIX':'PIX','DEBITO AUTOMATICO':'DEBITO AUTOMATICO','DEBITO AUTOMATICO SICREDI':'DEBITO AUTOMATICO',
+      'BOLETO BANCARIO':'BOLETO','BOLETO':'BOLETO',
+      'TED':'TRANSFERENCIA','DOC':'TRANSFERENCIA','TRANSFERENCIA':'TRANSFERENCIA',
+      'CARTAO DE CREDITO':'CARTAO CREDITO','CREDITO':'CARTAO CREDITO','CARTAO CREDITO':'CARTAO CREDITO',
+      'CARTAO DEBITO':'CARTAO DEBITO','DEBITO':'CARTAO DEBITO'
+    }
+    const base = map[t] || t
+    return equivalences.meio[base] || base
+  }
+  function normalizeFornecedor(s){
+    const base = simplifyText(s)
+    return equivalences.fornecedor[base] || base
+  }
+  function normalizeMoney(v){
+    if(v==null || v==='') return null
+    const s = String(v).replace(/\s/g,'').replace(/^R\$\s*/i,'').replace(/\./g,'').replace(/,/g,'.')
+    const n = parseFloat(s)
+    if (isNaN(n)) return null
+    return Number(n.toFixed(2))
+  }
 
   // === PLANILHA ===
   async function carregarPlanilha(){
@@ -138,7 +174,17 @@
   function verificarDivergencia(it){
     const plan=planilhaCache.find(p=>String(p.ID).trim()===String(it.ParcelaId).trim())
     if(!plan) return {tipo:"fora"} 
-    return {tipo:"ok"}
+    const valorPlan=normalizeMoney(plan.Valor)
+    const valorSys=normalizeMoney(it.ValorBruto)
+    const fornPlan=normalizeFornecedor(plan.Fornecedor)
+    const fornSys=normalizeFornecedor(it.DadosDoTitulo?.ClienteFornecedor?.Nome)
+    const meioPlan=normalizeMeio(plan["Meio Pagamento"])
+    const meioSys=normalizeMeio(it.MeioDePagamento)
+    const diffs=[]
+    if(valorPlan!==valorSys) diffs.push("Valor")
+    if(fornPlan!==fornSys) diffs.push("Fornecedor")
+    if(meioPlan!==meioSys) diffs.push("Meio Pagamento")
+    return diffs.length?{tipo:"divergente",campos:diffs}:{tipo:"ok"}
   }
 
   async function carregarParcelas(mostrarOverlay=false){
@@ -178,7 +224,8 @@ function renderTable(apiResp){
     const tr=document.createElement("tr")
     const check=verificarDivergencia(it)
     if(check.tipo==="ok") tr.classList.add("ok")
-
+    if(check.tipo==="divergente"){ tr.classList.add("divergente"); tr.title="Diferenças: "+check.campos.join(", ") }
+    
     const dados=JSON.stringify({
       id:it.ParcelaId||"",empresa:it.DadosDoTitulo?.Empresa?.Nome||"",
       fornecedor:it.DadosDoTitulo?.ClienteFornecedor?.Nome||"",
@@ -189,17 +236,10 @@ function renderTable(apiResp){
       observacao:it.DadosDoTitulo?.Observacao||""
     })
 
-    // Decide se mostra ❌ ou checkbox com base em flaggedIds
-    let firstTd=""
-    if(flaggedIds.includes(it.ParcelaId)){
-      firstTd=`<button class="btn-inline btn-danger" data-json='${dados}'
-        onclick='removerRegistro(${JSON.stringify(it).replace(/"/g,'&quot;')})'>❌</button>`
-    }else{
-      firstTd=`<input type="checkbox" class="chkParcela" data-id="${it.ParcelaId}" data-json='${dados}'>`
-    }
-
     tr.innerHTML=`
-      <td>${firstTd}</td>
+      <td>
+        <input type="checkbox" class="chkParcela" data-id="${it.ParcelaId}" data-json='${dados}'>
+      </td>
       <td>${it.ParcelaId||""}</td>
       <td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td>
       <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</td>
@@ -216,7 +256,7 @@ function renderTable(apiResp){
     tbody.appendChild(tr)
   }
 
-  // Listeners dos checkboxes
+  // Listener automático no checkbox
   document.querySelectorAll(".chkParcela").forEach(chk=>{
     chk.addEventListener("change",async ()=>{
       const reg=JSON.parse(chk.dataset.json)
@@ -225,21 +265,39 @@ function renderTable(apiResp){
         if(!flaggedIds.includes(reg.id)) flaggedIds.push(reg.id)
         saveFlags()
         tr.classList.add("ok")
+        chk.style.accentColor="green"
         await enviarParaPlanilha("conferir",[reg])
+
+        // troca checkbox por ❌
         const td = chk.parentElement
-        td.innerHTML = `<button class="btn-inline btn-danger" data-json='${JSON.stringify(reg).replace(/"/g,'&quot;')}'
-          onclick='removerRegistro(${JSON.stringify(reg).replace(/"/g,'&quot;')})'>❌</button>`
+        td.innerHTML = `<button class="btn-inline btn-danger" onclick='removerRegistro(${JSON.stringify(reg).replace(/"/g,'&quot;')})'>❌</button>`
       }
     })
   })
 }
 
-// Função para remover
+// Função para remover e voltar checkbox
 async function removerRegistro(reg){
   await enviarParaPlanilha("excluir",[reg])
-  const idx=flaggedIds.indexOf(reg.ParcelaId||reg.id)
-  if(idx>-1){flaggedIds.splice(idx,1);saveFlags()}
-  carregarParcelas(false)
+  const tr = document.querySelector(`tr td button[onclick*="${reg.id}"]`)?.closest("tr")
+  if(tr){
+    tr.classList.remove("ok")
+    const dados=JSON.stringify(reg).replace(/"/g,'&quot;')
+    tr.querySelector("td").innerHTML = `<input type="checkbox" class="chkParcela" data-id="${reg.id}" data-json='${dados}'>`
+    // reanexa listener ao novo checkbox
+    const novoChk = tr.querySelector(".chkParcela")
+    novoChk.addEventListener("change",async ()=>{
+      const regNovo=JSON.parse(novoChk.dataset.json)
+      if(novoChk.checked){
+        if(!flaggedIds.includes(regNovo.id)) flaggedIds.push(regNovo.id)
+        saveFlags()
+        tr.classList.add("ok")
+        novoChk.style.accentColor="green"
+        await enviarParaPlanilha("conferir",[regNovo])
+        tr.querySelector("td").innerHTML = `<button class="btn-inline btn-danger" onclick='removerRegistro(${JSON.stringify(regNovo).replace(/"/g,'&quot;')})'>❌</button>`
+      }
+    })
+  }
 }
 
   function popularEmpresas(apiResp){
@@ -247,6 +305,20 @@ async function removerRegistro(reg){
     const empresas=[...new Set(items.map(it=>it.DadosDoTitulo?.Empresa?.Nome).filter(Boolean))]
     empresaSelect.innerHTML='<option value="">-- Todas as empresas --</option>'
     empresas.forEach(e=>{const opt=document.createElement("option");opt.value=e;opt.textContent=e;empresaSelect.appendChild(opt)})
+  }
+
+  async function reconferirAprendendo(reg){
+    const existente = planilhaCache.find(p=>p.ID==reg.id)
+    if (existente){
+      const planFornecedor = normalizeFornecedor(existente.Fornecedor)
+      const sysFornecedor  = normalizeFornecedor(reg.fornecedor)
+      if (planFornecedor !== sysFornecedor) { equivalences.fornecedor[planFornecedor] = sysFornecedor }
+      const planMeio = normalizeMeio(existente["Meio Pagamento"])
+      const sysMeio  = normalizeMeio(reg.meio)
+      if (planMeio !== sysMeio) { equivalences.meio[planMeio] = sysMeio }
+      saveEquivalences()
+    }
+    await enviarParaPlanilha("reconferir",[reg])
   }
 
 async function enviarParaPlanilha(tipo, registros){
@@ -263,17 +335,17 @@ async function enviarParaPlanilha(tipo, registros){
   }
 }
   document.getElementById("btnLoad").addEventListener("click",()=>carregarParcelas(true))
-
   document.getElementById("btnConferido").addEventListener("click",()=>{
-    const registros=[]
-    flaggedIds.forEach(id=>{
-      const item=document.querySelector(`[data-id="${id}"],button[data-json*="${id}"]`)
-      if(item && item.dataset.json){
-        registros.push(JSON.parse(item.dataset.json))
-      }
-    })
-    if(registros.length) enviarParaPlanilha("conferir",registros)
+  const registros = []
+  document.querySelectorAll(".chkParcela, .btn-inline").forEach(el=>{
+    let data = el.dataset.json
+    if(data){
+      const reg = JSON.parse(data)
+      if(flaggedIds.includes(reg.id)) registros.push(reg)
+    }
   })
+  if(registros.length) enviarParaPlanilha("conferir", registros)
+})
 
   document.getElementById("btnExcluir").addEventListener("click",()=>enviarParaPlanilha("excluir"))
   document.getElementById("searchBox").addEventListener("input",()=>renderTable(apiCache))
@@ -282,7 +354,10 @@ async function enviarParaPlanilha(tipo, registros){
   document.getElementById("inicio").value=hoje
   document.getElementById("fim").value=hoje
 
+  // Primeira carga com overlay
   carregarParcelas(true)
 </script>
+
+
 </body>
 </html>
