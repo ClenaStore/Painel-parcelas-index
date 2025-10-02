@@ -442,32 +442,37 @@ if(chk.checked){
   });
 }
 
-/* ===== FILTROS ===== */
 function popularFiltros(apiResp){
   const items=(apiResp.Result&&apiResp.Result.Parcelas)||[];
-  // empresas
-  const curEmpresa=empresaSelect.value;
   const empresas=[...new Set(items.map(it=>it.DadosDoTitulo?.Empresa?.Nome).filter(Boolean))].sort();
+
   empresaSelect.innerHTML='<option value="">-- Todas as empresas --</option>';
   empresas.forEach(e=>{
-    const opt=document.createElement("option"); opt.value=e; opt.textContent=e; empresaSelect.appendChild(opt);
+    const opt=document.createElement("option");
+    opt.value=e; 
+    opt.textContent=e; 
+    empresaSelect.appendChild(opt);
   });
-  if(curEmpresa) empresaSelect.value=curEmpresa;
-  // status
-// status
-const curStatus = statusSelect.value || "Aberto";  // garante fallback em "Aberto"
-const statusUnicos=[...new Set(items.map(it=>it.Status).filter(Boolean))].sort();
-statusSelect.innerHTML='<option value="">-- Todos os status --</option>';
-statusUnicos.forEach(s=>{
-  const opt=document.createElement("option"); 
-  opt.value=s; 
-  opt.textContent=s; 
-  statusSelect.appendChild(opt);
-});
-// mantém a seleção ou força "Aberto" se não houver
-if(curStatus) statusSelect.value=curStatus;
 
-  // meios
+  // 🔹 define empresa padrão
+  const empresaPadrao = "MERCATTO DELÍCIA";
+  if(empresas.includes(empresaPadrao)){
+    empresaSelect.value = empresaPadrao;
+  }
+
+  // 🔹 status
+  const curStatus = statusSelect.value || "Aberto";
+  const statusUnicos=[...new Set(items.map(it=>it.Status).filter(Boolean))].sort();
+  statusSelect.innerHTML='<option value="">-- Todos os status --</option>';
+  statusUnicos.forEach(s=>{
+    const opt=document.createElement("option"); 
+    opt.value=s; 
+    opt.textContent=s; 
+    statusSelect.appendChild(opt);
+  });
+  if(curStatus) statusSelect.value=curStatus;
+
+  // 🔹 meios de pagamento
   const selAntes=getMeiosSelecionados();
   const meios=[...new Set(items.map(it=>it.MeioDePagamento).filter(Boolean))].sort();
   meioMenu.innerHTML="";
@@ -480,6 +485,7 @@ if(curStatus) statusSelect.value=curStatus;
   });
   atualizarTextoMeio();
 }
+
 function getMeiosSelecionados(){
   return [...meioMenu.querySelectorAll('input[type="checkbox"][value]')].filter(c=>c.checked).map(c=>c.value);
 }
@@ -561,22 +567,46 @@ document.getElementById("btnConferido").addEventListener("click", async ()=>{
 });
 
 
+  /* ===== CARGA INICIAL OTIMIZADA ===== */
+async function cargaInicial(){
+  // empresa padrão
+  const empresaPadrao = "MERCATTO DELÍCIA";
+  empresaSelect.value = empresaPadrao;
+
+  // carrega só essa primeiro
+  await carregarParcelas(true);
+
+  // depois em background carrega as demais
+  setTimeout(async ()=>{
+    const empresas = [...empresaSelect.options].map(o=>o.value).filter(v=>v && v!==empresaPadrao);
+    for(const emp of empresas){
+      empresaSelect.value = emp;
+      await carregarParcelas(false); // sem overlay
+    }
+    // volta para empresa padrão no final
+    empresaSelect.value = empresaPadrao;
+    renderTable(apiCache);
+  }, 1000);
+}
+
+/* ===== DEFINIÇÃO DAS DATAS E STATUS ===== */
 const hoje = new Date();
 const amanha = new Date();
 amanha.setDate(hoje.getDate() + 1);
 
 document.getElementById("inicio").value = hoje.toISOString().slice(0,10);
 document.getElementById("fim").value = amanha.toISOString().slice(0,10);
+statusSelect.value = "Aberto";
 
-// força status inicial = Aberto
-statusSelect.value="Aberto";
+/* ===== INÍCIO ===== */
+cargaInicial();
 
-// primeira carga
-carregarParcelas(true);
+// continua verificando divergências periodicamente
 setInterval(async ()=>{
   await carregarPlanilha();
   atualizarDivergenciasNaView();
 }, 5000);
+
 
 </script>
 </body>
