@@ -366,14 +366,27 @@ for(const it of items){
 
   const id = String(it.ParcelaId || ""); // <-- faltava isso
 
-  const check = verificarDivergencia(it);
-  tr.classList.remove("ok","divergente");
-  if(check.tipo==="ok") {
-    tr.classList.add("ok"); // verde
-  } else if(check.tipo==="divergente") {
-    tr.classList.add("divergente"); // laranja
+ const check = verificarDivergencia(it);
+
+// verifica se o ID existe na planilha
+const existeNaPlanilha = planilhaCache.some(p =>
+  String(p.ID||p.Numero||"").trim().toUpperCase() === String(it.ParcelaId||"").trim().toUpperCase() &&
+  simplifyText(p.Empresa||"") === simplifyText(it.DadosDoTitulo?.Empresa?.Nome||"")
+);
+
+tr.classList.remove("ok","divergente","fora");
+
+if (existeNaPlanilha) {
+  if (check.tipo === "ok") {
+    tr.classList.add("ok"); // ✅ verde: existe e bate com a planilha
+  } else if (check.tipo === "divergente") {
+    tr.classList.add("divergente"); // ⚠️ laranja: existe mas tem divergências
     divergentes++;
-  } // fora => branco
+  }
+} else {
+  tr.classList.add("fora"); // branco: não existe na planilha
+}
+
 
   tr.innerHTML=`
    <td><input type="checkbox" class="chkParcela" data-id="${id}" ${planilhaCache.some(p=>String(p.ID||p.Numero||"")===id)?"checked":""}></td>
