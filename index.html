@@ -390,19 +390,43 @@ meioMenu.addEventListener("change",e=>{
 });
 
 /* =================== API F360 =================== */
-async function fetchParcelasPeriodo(base){
-  let pagina=1, todos=[];
-  while(true){
-    const params = new URLSearchParams({ ...base, pagina });
-    const r = await fetch('/api/parcelas?'+params.toString());
-    const j = await r.json();
-    const arr = j?.Result?.Parcelas || [];
-    if(!arr.length) break;
-    todos = todos.concat(arr);
-    pagina++;
-    if(pagina % 4 === 0) await new Promise(res=>setTimeout(res,0));
+function renderTabela(arr, page=1, perPage=100){
+  const tb = $("#parcelasTable tbody");
+  tb.innerHTML = "";
+
+  const inicio = (page-1)*perPage;
+  const fim = inicio + perPage;
+  const fatia = arr.slice(inicio,fim);
+
+  if(!fatia.length){
+    tb.innerHTML = `<tr><td colspan="13">Nenhum título encontrado</td></tr>`;
+    $("#count").textContent = 0;
+    return;
   }
-  return todos;
+
+  fatia.forEach(it=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${it.ParcelaId||""}</td>
+      <td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td>
+      <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</td>
+      <td>${(it.DadosDoTitulo?.Emissao||"").split("T")[0]}</td>
+      <td>${(it.Vencimento||"").split("T")[0]}</td>
+      <td>${fmtBRL(toNumber(it.ValorBruto))}</td>
+      <td>${it.Status||""}</td>
+      <td>${it.Conta||""}</td>
+      <td>${it.MeioDePagamento||""}</td>
+      <td>${it.DadosDoTitulo?.TipoDeDocumento||""}</td>
+      <td>${it.Rateio?.[0]?.CentroDeCusto||""}</td>
+      <td>${it.Rateio?.[0]?.PlanoDeContas||""}</td>
+      <td>${it.DadosDoTitulo?.Observacao||""}</td>
+    `;
+    tb.appendChild(tr);
+  });
+
+  $("#count").textContent = arr.length.toLocaleString("pt-BR");
+}
+s;
 }
 
 /* =================== FILTROS & POPULADORES =================== */
