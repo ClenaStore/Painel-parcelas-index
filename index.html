@@ -1,166 +1,144 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="light">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>Painel • Planos de Contas & Títulos (F360)</title>
+
+  <!-- Charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
   <style>
     :root{
       --bg:#f9fafb; --card:#fff; --ink:#0f1724; --muted:#6b7280;
       --accent:#2563eb; --danger:#dc2626; --warn:#f59e0b; --ok:#16a34a;
-      --radius:10px; --shadow:0 4px 14px rgba(15,23,42,.08);
+      --line:#e5e7eb; --radius:12px; --shadow:0 6px 24px rgba(15,23,42,.08);
     }
     *{box-sizing:border-box;margin:0;padding:0}
     html,body{height:100%}
-    body{font-family:Inter,system-ui,Arial;background:var(--bg);color:var(--ink);
-      display:flex;flex-direction:column;overflow:hidden}
-    header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:#fff;
-      border-bottom:1px solid #e5e7eb;z-index:10;box-shadow:var(--shadow)}
+    body{font-family:Inter,system-ui,Arial;background:var(--bg);color:var(--ink);display:flex;flex-direction:column}
+
+    header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:#fff;border-bottom:1px solid var(--line);box-shadow:var(--shadow);z-index:10}
     header img{height:32px}
-    h1{margin:0;font-size:16px;font-weight:600}
-    .badge-top{margin-left:16px;background:var(--ok);color:#fff;font-size:12px;
-      padding:4px 10px;border-radius:16px;font-weight:600}
+    h1{margin:0;font-size:16px;font-weight:700}
     .meta{margin-left:auto;font-size:13px;color:var(--muted)}
     .perfil{display:flex;align-items:center;gap:8px;margin-left:16px}
-    .perfil img{width:45px;height:45px;border-radius:50%}
-    .perfil span{font-size:13px;color:var(--ink);font-weight:500}
+    .perfil img{width:42px;height:42px;border-radius:50%}
 
-    .wrap{display:flex;flex-direction:column;height:100%;overflow:hidden}
+    .wrap{display:flex;flex-direction:column;flex:1;overflow:hidden}
     .row{display:flex;gap:12px;padding:12px}
-    .row.stretch{flex:1;overflow:hidden}
-    .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
-      padding:12px 16px;display:flex;flex-direction:column}
-    .card.kpis{flex:0 0 auto;width:100%}
+    .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:12px 16px;display:flex;flex-direction:column}
+
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    .controls input,.controls select,.controls button{padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:14px;background:#fff}
+    .btn{background:var(--accent);color:#fff;border:none;cursor:pointer}
+    .btn.secondary{background:#eef2ff;color:#1e3a8a;border:1px solid #c7d2fe}
+    .btn.danger{background:var(--danger)}
+    .tag{padding:6px 10px;border:1px solid var(--line);border-radius:999px;font-size:12px;color:#334155;background:#f8fafc}
+
+    /* Multi-select de meios */
+    .multi{position:relative}
+    .multi>input{min-width:220px;cursor:pointer;background:#fff}
+    .multi-menu{position:absolute;top:110%;left:0;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:var(--shadow);padding:8px;display:none;z-index:50;max-height:260px;overflow:auto;min-width:240px}
+    .multi.open .multi-menu{display:block}
+    .multi-menu label{display:flex;gap:8px;align-items:center;font-size:13px;padding:4px 6px;border-radius:6px}
+    .multi-menu label:hover{background:#f3f4f6}
+
     .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-    .kpi{border:1px solid #e5e7eb;border-radius:12px;padding:12px}
+    .kpi{border:1px solid var(--line);border-radius:12px;padding:12px}
     .kpi .title{font-size:12px;color:var(--muted);text-transform:uppercase}
     .kpi .value{font-size:20px;font-weight:800;margin-top:6px}
     .kpi .delta{font-size:12px;margin-top:6px}
-    .delta.up{color:var(--ok)} .delta.down{color:var(--danger)}
+    .delta.up{color:var(--ok)} .delta.down{color:var(--danger)} .muted{color:var(--muted)}
 
-    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
-    input,select,button{
-      padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:14px;
-      background:#fff;transition:.2s
-    }
-    input:focus,select:focus{outline:none;border-color:var(--accent);
-      box-shadow:0 0 0 2px rgba(37,99,235,.15)}
-    button{cursor:pointer}
-    .btn{background:var(--accent);color:#fff;border:none}
-    .btn:hover{opacity:.9;transform:scale(1.02)}
-
-    .multi{position:relative}
-    .multi>input{min-width:220px;cursor:pointer;background:#fff}
-    .multi-menu{position:absolute;top:110%;left:0;background:#fff;border:1px solid #e5e7eb;
-      border-radius:8px;box-shadow:var(--shadow);padding:8px;display:none;z-index:50;max-height:260px;overflow:auto;min-width:220px}
-    .multi-menu label{display:flex;gap:8px;align-items:center;font-size:13px;padding:4px 6px;border-radius:6px}
-    .multi-menu label:hover{background:#f3f4f6}
-    .multi.open .multi-menu{display:block}
-
-    .grid-2{display:grid;grid-template-columns:1.2fr .8fr;gap:12px}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-    canvas{width:100%;height:280px}
 
     #tableWrap{flex:1;overflow:auto}
     table{width:100%;border-collapse:separate;border-spacing:0 4px}
-    th{background:#f3f4f6;position:sticky;top:0;z-index:5;padding:10px;font-size:12px;
-      text-align:left;text-transform:uppercase;font-weight:600;color:var(--muted)}
-    td{padding:10px;background:#fff;border-bottom:1px solid #f1f5f9;font-size:13px;
-      white-space:nowrap;border-top:1px solid #f1f5f9;transition:.2s}
-    tr:hover td{background:#f3f4f6}
+    th{background:#f3f4f6;position:sticky;top:0;padding:10px;font-size:12px;text-align:left;text-transform:uppercase;color:var(--muted);z-index:5}
+    td{padding:10px;background:#fff;border:1px solid #f1f5f9;border-left:none;border-right:none;font-size:13px;white-space:nowrap}
+    tr:hover td{background:#f8fafc}
 
-    footer{padding:10px 16px;font-size:13px;color:var(--muted);display:flex;
-      justify-content:space-between;background:#fff;border-top:1px solid #e5e7eb}
+    footer{padding:10px 16px;font-size:13px;color:var(--muted);display:flex;justify-content:space-between;background:#fff;border-top:1px solid var(--line)}
 
-    #loader{position:fixed;top:0;left:0;width:100%;height:100%;
-      background:rgba(37,99,235,.6);display:none;align-items:center;
-      justify-content:center;z-index:99;flex-direction:column;color:#fff;
-      font-size:18px;font-weight:600;backdrop-filter:blur(3px)}
-    .spinner{border:4px solid rgba(255,255,255,.3);border-top:4px solid #fff;
-      border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite;margin-bottom:12px}
-    @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+    /* Loader */
+    #loader{position:fixed;inset:0;background:rgba(37,99,235,.6);display:none;align-items:center;justify-content:center;z-index:99;flex-direction:column;color:#fff;font-size:18px;font-weight:600;backdrop-filter:blur(3px)}
+    .spinner{border:4px solid rgba(255,255,255,.35);border-top:4px solid #fff;border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite;margin-bottom:12px}
+    @keyframes spin{to{transform:rotate(360deg)}}
 
-    @media(max-width:980px){ .kpis{grid-template-columns:1fr 1fr} .grid-2,.grid-3{grid-template-columns:1fr} canvas{height:240px}}
-    /* login */
-    #login{position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;
-      display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:200}
+    /* Login (opcional) */
+    #login{position:fixed;inset:0;background:#fff;display:none;align-items:center;justify-content:center;flex-direction:column;z-index:200}
     #login img{width:180px;margin-bottom:20px}
     #login input{padding:10px 14px;font-size:16px;width:240px;text-align:center}
     #login button{margin-top:12px;width:240px;padding:10px;font-size:15px}
     #login small{margin-top:8px;color:var(--muted)}
+
+    @media(max-width:1100px){.kpis{grid-template-columns:1fr 1fr}.grid-2,.grid-3{grid-template-columns:1fr}}
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
-  <!-- Tela login -->
+  <!-- Login opcional (deixe SENHA_CORRETA vazio para desativar) -->
   <div id="login">
     <img src="https://static.wixstatic.com/media/d830b0_8cec50a98bbf4775814dbfa5386585e8~mv2.png" alt="Logo">
-    <input type="password" id="senhaInput" placeholder="Digite a senha">
+    <input type="password" id="senhaInput" placeholder="Digite a senha" />
     <button class="btn" id="btnLogin">Entrar</button>
-    <small>Esta sessão fica salva no navegador e é proibido compartilhar com terceiros.</small>
+    <small>Esta sessão fica salva no navegador. É proibido compartilhar com terceiros.</small>
     <div id="loginMsg" style="color:#dc2626;margin-top:10px;font-size:13px"></div>
   </div>
 
-  <!-- Cabeçalho -->
   <header>
     <img src="https://static.wixstatic.com/media/d830b0_8cec50a98bbf4775814dbfa5386585e8~mv2.png" alt="Logo">
     <div>
       <h1>Painel • Planos de Contas & Títulos (F360)</h1>
-      <div class="small">Integração F360 ativa • Análise + Consulta</div>
+      <div class="muted" style="font-size:12px">Integração F360 ativa • Análise + Consulta</div>
     </div>
-    <div class="badge-top">Modo: Despesas</div>
     <div class="meta">Status: <span id="status">inicializando...</span></div>
-    <div class="perfil"><img src="https://github.com/ClenaStore/Painel-parcelas-index/blob/main/paste/Captura%20de%20tela%202025-09-30%20132347.png?raw=true" alt=""><span id="perfilNome">Yane Melo</span></div>
+    <div class="perfil"><img src="https://i.pravatar.cc/120" alt=""><span>Usuário</span></div>
   </header>
 
   <div id="loader"><div class="spinner"></div>Carregando...</div>
 
   <div class="wrap">
-    <!-- Filtros + KPIs -->
+    <!-- Filtros -->
     <div class="row">
       <div class="card" style="flex:1">
         <div class="controls">
-          <select id="empresaSelect"><option value="">-- Todas as empresas --</option></select>
+          <span class="tag">Tipo:</span>
+          <label class="tag"><input type="radio" name="tipo" value="Despesa" checked> Despesa</label>
+          <label class="tag"><input type="radio" name="tipo" value="Receita"> Receita</label>
+
+          <select id="empresaSelect" title="Empresa"><option value="">-- Todas as empresas --</option></select>
           <input type="date" id="inicio" />
           <input type="date" id="fim" />
-          <select id="tipoDatas"><option>Emissão</option><option selected>Vencimento</option></select>
+          <select id="tipoDatas" title="Referência de data"><option>Emissão</option><option selected>Vencimento</option></select>
 
-          <!-- Plano de Contas (lista dinâmica) -->
+          <select id="statusSelect" title="Status"><option value="">-- Todos os status --</option></select>
           <select id="planoSelect" title="Plano de Contas"><option value="">-- Todos os planos --</option></select>
 
-          <!-- Multi select de meios -->
           <div class="multi" id="meioMulti">
             <input type="text" readonly placeholder="Formas de pagamento" id="meioInput" />
             <div class="multi-menu" id="meioMenu"></div>
           </div>
 
-          <select id="statusSelect"><option value="">-- Todos os status --</option></select>
           <input type="text" id="searchBox" placeholder="🔍 Buscar fornecedor/observação..." />
+
           <button class="btn" id="btnLoad">Analisar</button>
+          <button class="btn secondary" id="btnRefresh">Atualizar</button>
+          <button class="btn danger" id="btnClearCache" title="Limpa somente o cache do período/param atual">Limpar Cache</button>
         </div>
 
         <!-- KPIs -->
         <div class="kpis">
-          <div class="kpi">
-            <div class="title">Total do Período</div>
-            <div class="value" id="kpiTotal">R$ 0,00</div>
-            <div class="delta" id="kpiTotalDelta">—</div>
-          </div>
-          <div class="kpi">
-            <div class="title">Qtde de Títulos</div>
-            <div class="value" id="kpiQtd">0</div>
-            <div class="delta" id="kpiQtdDelta">—</div>
-          </div>
-          <div class="kpi">
-            <div class="title">Ticket Médio</div>
-            <div class="value" id="kpiTicket">R$ 0,00</div>
-            <div class="delta" id="kpiTicketDelta">—</div>
-          </div>
-          <div class="kpi">
-            <div class="title">Plano Top 1</div>
-            <div class="value" id="kpiTopPlano">—</div>
-            <div class="delta" id="kpiTopPlanoPart">—</div>
-          </div>
+          <div class="kpi"><div class="title">Total do Período</div><div class="value" id="kpiTotal">R$ 0,00</div><div class="delta" id="kpiTotalDelta">—</div></div>
+          <div class="kpi"><div class="title">Qtde de Títulos</div><div class="value" id="kpiQtd">0</div><div class="delta" id="kpiQtdDelta">—</div></div>
+          <div class="kpi"><div class="title">Ticket Médio</div><div class="value" id="kpiTicket">R$ 0,00</div><div class="delta" id="kpiTicketDelta">—</div></div>
+          <div class="kpi"><div class="title">Top Plano</div><div class="value" id="kpiTopPlano">—</div><div class="delta" id="kpiTopPlanoPart">—</div></div>
+
+          <div class="kpi"><div class="title">% Pago x Aberto</div><div class="value" id="kpiPago">—</div><div class="delta muted" id="kpiAbertoValor">—</div></div>
+          <div class="kpi"><div class="title">Maior Título</div><div class="value" id="kpiMaior">—</div><div class="delta muted" id="kpiMaiorForn">—</div></div>
+          <div class="kpi"><div class="title">Dias médios até Venc.</div><div class="value" id="kpiDias">—</div><div class="delta muted" id="kpiDiasObs">—</div></div>
+          <div class="kpi"><div class="title">Atrasados (valor)</div><div class="value" id="kpiAtrasoValor">—</div><div class="delta muted" id="kpiAtrasoQtd">—</div></div>
         </div>
       </div>
     </div>
@@ -168,24 +146,34 @@
     <!-- Gráficos -->
     <div class="row">
       <div class="card" style="flex:1">
-        <div style="font-size:13px;color:var(--muted);margin-bottom:8px">Valor por Plano de Contas (Top 10) — clique para filtrar a tabela</div>
+        <div class="muted" style="margin-bottom:8px;font-size:13px">Valor por Plano de Contas (Top 10) — clique para filtrar</div>
         <canvas id="chartPlanos"></canvas>
+      </div>
+    </div>
+    <div class="row grid-2">
+      <div class="card">
+        <div class="muted" style="margin-bottom:8px;font-size:13px">Evolução diária no período</div>
+        <canvas id="chartEvolucao"></canvas>
+      </div>
+      <div class="card">
+        <div class="muted" style="margin-bottom:8px;font-size:13px">Distribuição por Status</div>
+        <canvas id="chartStatus"></canvas>
       </div>
     </div>
     <div class="row">
       <div class="card" style="flex:1">
-        <div style="font-size:13px;color:var(--muted);margin-bottom:8px">Evolução diária no período</div>
-        <canvas id="chartEvolucao"></canvas>
-      </div>
-      <div class="card" style="flex:1">
-        <div style="font-size:13px;color:var(--muted);margin-bottom:8px">Distribuição por Status</div>
-        <canvas id="chartStatus"></canvas>
+        <div class="muted" style="margin-bottom:8px;font-size:13px">Centro de Custo (Top 5, valor)</div>
+        <canvas id="chartCCusto"></canvas>
       </div>
     </div>
 
     <!-- Tabela -->
-    <div class="row stretch">
+    <div class="row" style="flex:1;overflow:hidden">
       <div class="card" style="flex:1;min-height:0">
+        <div class="controls" style="margin-bottom:8px">
+          <button class="btn secondary" id="btnCSV">Exportar CSV</button>
+          <span class="muted" style="margin-left:auto">Total exibido: <b id="count">0</b></span>
+        </div>
         <div id="tableWrap">
           <table id="parcelasTable">
             <thead>
@@ -198,7 +186,7 @@
                 <th>Valor</th>
                 <th>Status</th>
                 <th>Conta</th>
-                <th>Meio Pagamento</th>
+                <th>Meio Pgto</th>
                 <th>Tipo Doc</th>
                 <th>Centro de Custo</th>
                 <th>Plano de Contas</th>
@@ -213,65 +201,114 @@
 
     <footer>
       <div>Última atualização: <span id="lastUpdate">—</span></div>
-      <div>Total exibido: <span id="count">0</span></div>
+      <div>Fonte: F360 • Cache: <span id="cacheInfo">—</span></div>
     </footer>
   </div>
 
 <script>
-/* ===== LOGIN ===== */
-const SENHA_CORRETA="12345";
-const loginEl=document.getElementById("login"), loginMsg=document.getElementById("loginMsg");
-document.getElementById("btnLogin").addEventListener("click",fazerLogin);
-document.getElementById("senhaInput").addEventListener("keydown",e=>{ if(e.key==="Enter") fazerLogin() });
-function fazerLogin(){
-  const s=document.getElementById("senhaInput").value;
-  if(s===SENHA_CORRETA){ localStorage.setItem("authSenha",s); loginEl.style.display="none"; }
-  else { localStorage.removeItem("authSenha"); loginMsg.textContent="Senha incorreta"; }
-}
-if(localStorage.getItem("authSenha")!==SENHA_CORRETA){ loginEl.style.display="flex"; } else { loginEl.style.display="none"; }
+/* =================== CONFIG & STATE =================== */
+const SENHA_CORRETA = ""; // defina "12345" para ativar login; vazio = desativa tela
+const UI_KEY = "f360_ui_state_v1";
+const CACHE_DB = "f360_cache_db_v1"; // banco de caches (obj por chave)
+const CACHE_TTL_MS = 1000 * 60 * 60 * 2; // 2 horas
+const BG_REFRESH_MS = 1000 * 60 * 5;     // 5 minutos
 
-/* ===== ELEMENTOS ===== */
-const statusEl=document.getElementById('status');
-const lastUpdateEl=document.getElementById('lastUpdate');
-const empresaSelect=document.getElementById('empresaSelect');
-const statusSelect=document.getElementById('statusSelect');
-const planoSelect=document.getElementById('planoSelect');
-const loader=document.getElementById('loader');
-const countEl=document.getElementById('count');
-const kpiTotal=document.getElementById('kpiTotal');
-const kpiTotalDelta=document.getElementById('kpiTotalDelta');
-const kpiQtd=document.getElementById('kpiQtd');
-const kpiQtdDelta=document.getElementById('kpiQtdDelta');
-const kpiTicket=document.getElementById('kpiTicket');
-const kpiTicketDelta=document.getElementById('kpiTicketDelta');
-const kpiTopPlano=document.getElementById('kpiTopPlano');
-const kpiTopPlanoPart=document.getElementById('kpiTopPlanoPart');
+let charts = {planos:null, evolucao:null, status:null, ccusto:null};
+let brutoAtual = [];     // dados brutos do período “atual” (sem filtros manuais)
+let filtrados = [];      // dados após filtros da UI
+let dadosAnterior = [];  // período anterior (para deltas)
 
-const meioMenu=document.getElementById('meioMenu');
-const meioInput=document.getElementById('meioInput');
-const meioMulti=document.getElementById('meioMulti');
+/* =================== UTILS =================== */
+const $ = sel => document.querySelector(sel);
+const $$ = sel => [...document.querySelectorAll(sel)];
+function fmtBRL(n){return (n||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}
+function toNumber(v){if(v==null||v==="")return 0;let s=String(v).trim().replace(/^R\$\s*/i,"").replace(/\./g,"").replace(",",".");const n=parseFloat(s);return isNaN(n)?0:n}
+function parseISO(d){return d?new Date(d):null}
+function addDays(d,days){const x=new Date(d);x.setDate(x.getDate()+days);return x}
+function startOfMonth(d){const x=new Date(d);x.setDate(1);x.setHours(0,0,0,0);return x}
+function endOfToday(){const x=new Date();x.setHours(23,59,59,999);return x}
+function sameDayYYYYMMDD(d){return d.toISOString().slice(0,10)}
+function diffDays(a,b){return Math.ceil((b-a)/(1000*60*60*24))}
+function simplify(s){return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().trim()}
 
-let apiDadosAtual = [];   // período atual (filtrado)
-let apiDadosBruto = [];   // período atual (sem filtros além do fetch base)
-let charts = {planos:null, evolucao:null, status:null};
-
-function setStatus(t){ statusEl.textContent=t }
-function showLoader(b){ loader.style.display=b?"flex":"none" }
-
-/* ===== HELPERS ===== */
-function simplifyText(s){ return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().trim() }
-function parseISO(d){ return d?new Date(d):null }
-function fmtBRL(n){ return (n||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}) }
-function addDays(dt,days){ const d=new Date(dt); d.setDate(d.getDate()+days); return d }
-function diffDays(a,b){ return Math.ceil((b - a) / (1000*60*60*24)) }
-function addMonthsKeepDate(d, m){
-  const dt = new Date(d); const day = dt.getDate();
-  dt.setMonth(dt.getMonth()+m);
-  if(dt.getDate()!==day){ dt.setDate(0); } // ajusta fim do mês
-  return dt;
+/* =================== LOGIN =================== */
+const loginEl = $("#login");
+if(SENHA_CORRETA){
+  loginEl.style.display = "flex";
+  $("#btnLogin").onclick = ()=>{
+    const v = $("#senhaInput").value;
+    if(v === SENHA_CORRETA){ localStorage.setItem("authSenha", v); loginEl.style.display="none"; }
+    else $("#loginMsg").textContent = "Senha incorreta";
+  };
+  if(localStorage.getItem("authSenha")===SENHA_CORRETA) loginEl.style.display="none";
 }
 
-/* ===== MULTI-MEIO ===== */
+/* =================== STORAGE (UI & CACHE) =================== */
+function saveUI(){
+  const ui = {
+    tipo: ($('input[name="tipo"]:checked')||{}).value || "Despesa",
+    empresa: $("#empresaSelect").value,
+    inicio: $("#inicio").value,
+    fim: $("#fim").value,
+    tipoDatas: $("#tipoDatas").value,
+    status: $("#statusSelect").value,
+    plano: $("#planoSelect").value,
+    meios: getMeiosSelecionados(),
+    busca: $("#searchBox").value
+  };
+  localStorage.setItem(UI_KEY, JSON.stringify(ui));
+}
+function loadUI(){
+  const ui = JSON.parse(localStorage.getItem(UI_KEY) || "null");
+  if(!ui) return;
+  // marcadores simples
+  $$('input[name="tipo"]').forEach(r=>{ r.checked = (r.value===ui.tipo); });
+  $("#empresaSelect").value = ui.empresa || "";
+  $("#inicio").value = ui.inicio || $("#inicio").value;
+  $("#fim").value = ui.fim || $("#fim").value;
+  $("#tipoDatas").value = ui.tipoDatas || "Vencimento";
+  $("#statusSelect").value = ui.status || "";
+  $("#planoSelect").value = ui.plano || "";
+  $("#searchBox").value = ui.busca || "";
+  // meios: serão aplicados quando popular filtros reconstruir a lista
+  setTimeout(()=>{ // aguarda popularFiltros()
+    ui.meios?.forEach(m=>{
+      const el = [...$("#meioMenu").querySelectorAll('input[type="checkbox"][value]')].find(x=>x.value===m);
+      if(el) el.checked = true;
+    });
+    atualizarTextoMeio();
+  }, 400);
+}
+
+// cache por chave de parâmetros-base (sem filtros manuais de busca/plano após fetch)
+function cacheKey(base){
+  const meio = base.meio || "";
+  return [base.tipo, base.inicio, base.fim, base.tipoDatas, base.empresa||"", base.status||"", meio].join("|");
+}
+function getCacheDB(){
+  try{ return JSON.parse(localStorage.getItem(CACHE_DB) || "{}"); }catch{ return {}; }
+}
+function setCacheDB(db){
+  try{
+    localStorage.setItem(CACHE_DB, JSON.stringify(db));
+  }catch(e){ console.warn("Erro salvando cache", e); }
+}
+function readCache(key){
+  const db = getCacheDB();
+  const item = db[key];
+  if(!item) return null;
+  const age = Date.now() - (item.time||0);
+  if(age > CACHE_TTL_MS) return null;
+  return item;
+}
+function writeCache(key, data){
+  const db = getCacheDB();
+  db[key] = { time: Date.now(), data };
+  setCacheDB(db);
+}
+
+/* =================== MULTI-MEIO =================== */
+const meioMenu = $("#meioMenu"), meioInput = $("#meioInput"), meioMulti = $("#meioMulti");
 function getMeiosSelecionados(){
   return [...meioMenu.querySelectorAll('input[type="checkbox"][value]')].filter(c=>c.checked).map(c=>c.value);
 }
@@ -282,127 +319,55 @@ function atualizarTextoMeio(){
 meioInput.addEventListener("click",()=>meioMulti.classList.toggle("open"));
 document.addEventListener("click",e=>{ if(!meioMulti.contains(e.target)) meioMulti.classList.remove("open"); });
 meioMenu.addEventListener("change",e=>{
-  const t=e.target;
-  if(t.dataset.bulk==="all"){
-    const all=!!t.checked;
-    meioMenu.querySelectorAll('input[type="checkbox"][value]').forEach(c=>c.checked=all);
+  if(e.target.dataset.bulk==="all"){
+    const on = !!e.target.checked;
+    meioMenu.querySelectorAll('input[type="checkbox"][value]').forEach(c=>c.checked=on);
   }
   atualizarTextoMeio();
-  renderTudo(); // refaz KPIs/Gráficos/Tabela com filtro de meio
+  renderTudo();
 });
 
-/* ===== API ===== */
-async function fetchParcelasPeriodo(paramsBase){
+/* =================== API F360 =================== */
+async function fetchParcelasPeriodo(base){
   let pagina=1, todos=[];
   while(true){
-    const params=new URLSearchParams({...paramsBase,pagina});
-    const r=await fetch('/api/parcelas?'+params.toString());
-    const data=await r.json();
-    const arr = (data && data.Result && data.Result.Parcelas) ? data.Result.Parcelas : [];
+    const params = new URLSearchParams({ ...base, pagina });
+    const r = await fetch('/api/parcelas?'+params.toString());
+    const j = await r.json();
+    const arr = j?.Result?.Parcelas || [];
     if(!arr.length) break;
     todos = todos.concat(arr);
     pagina++;
+    // micro-intervalo para não travar
+    if(pagina % 4 === 0) await new Promise(res=>setTimeout(res,0));
   }
   return todos;
 }
 
-async function carregarDados(mostrarOverlay=false){
-  setStatus("carregando...");
-  if(mostrarOverlay) showLoader(true);
-
-  const tipo = "Despesa";
-  const inicioStr = document.getElementById('inicio').value;
-  const fimStr = document.getElementById('fim').value;
-  const tipoDatas = document.getElementById('tipoDatas').value;
-
-  const base = {
-    tipo, inicio:inicioStr, fim:fimStr, tipoDatas
-  };
-  const empresa=empresaSelect.value, status=statusSelect.value;
-  if(empresa) base.empresa=empresa;
-  if(status) base.status=status;
-  const meiosSel=getMeiosSelecionados();
-  if(meiosSel.length) base.meio = meiosSel.join(",");
-
-  // Período atual
-  apiDadosBruto = await fetchParcelasPeriodo(base);
-
-  // Período anterior de mesma duração
-  const dIni = parseISO(inicioStr), dFim = parseISO(fimStr);
-  const dias = Math.max(1, diffDays(dIni, dFim));
-  // Move 1 mês para trás, preservando duração
-  const prevIni = addMonthsKeepDate(dIni, -1);
-  const prevFim = addDays(prevIni, dias);
-
-  const baseAnterior = {...base, inicio: prevIni.toISOString().slice(0,10), fim: prevFim.toISOString().slice(0,10)};
-  const dadosAnterior = await fetchParcelasPeriodo(baseAnterior);
-
-  // Atualiza filtros dinâmicos
-  popularFiltros(apiDadosBruto);
-
-  // Aplica filtros da UI para "dados atuais"
-  apiDadosAtual = aplicarFiltros(apiDadosBruto);
-
-  // KPIs e gráficos
-  atualizarKPIs(apiDadosAtual, dadosAnterior);
-  desenharGraficos(apiDadosAtual);
-
-  // Tabela
-  renderTabela(apiDadosAtual);
-
-  setStatus("ok");
-  lastUpdateEl.textContent=new Date().toLocaleString();
-  if(mostrarOverlay) showLoader(false);
-}
-
-/* ===== FILTROS DA UI ===== */
-function aplicarFiltros(items){
-  const empresa=empresaSelect.value;
-  const status=statusSelect.value;
-  const plano=planoSelect.value;
-  const meiosSel=getMeiosSelecionados().map(simplifyText);
-  const tipoDatas=document.getElementById('tipoDatas').value;
-  const dIni=parseISO(document.getElementById('inicio').value);
-  const dFim=parseISO(document.getElementById('fim').value);
-  const q=(document.getElementById("searchBox").value||"").toLowerCase();
-  return items.filter(it=>{
-    const txt=((it.DadosDoTitulo?.ClienteFornecedor?.Nome||"")+" "+(it.DadosDoTitulo?.Empresa?.Nome||"")+" "+(it.DadosDoTitulo?.Observacao||"")).toLowerCase();
-    if(q && !txt.includes(q)) return false;
-    if(empresa && (it.DadosDoTitulo?.Empresa?.Nome||"")!==empresa) return false;
-    if(status && (it.Status||"")!==status) return false;
-    if(plano && (it.Rateio?.[0]?.PlanoDeContas||"")!==plano) return false;
-    if(meiosSel.length){
-      const meio=simplifyText(it.MeioDePagamento||"");
-      if(!meiosSel.includes(meio)) return false;
-    }
-    const ref = tipoDatas==="Emissão" ? parseISO(it.DadosDoTitulo?.Emissao) : parseISO(it.Vencimento);
-    if(dIni && ref && ref<dIni) return false;
-    if(dFim && ref && ref>dFim) return false;
-    return true;
-  });
-}
-
+/* =================== FILTROS & POPULADORES =================== */
 function popularFiltros(items){
   // empresas
   const empresas=[...new Set(items.map(it=>it.DadosDoTitulo?.Empresa?.Nome).filter(Boolean))].sort();
-  const curEmp=empresaSelect.value;
-  empresaSelect.innerHTML='<option value="">-- Todas as empresas --</option>';
-  empresas.forEach(e=>empresaSelect.insertAdjacentHTML('beforeend', `<option value="${e}">${e}</option>`));
-  if(curEmp && empresas.includes(curEmp)) empresaSelect.value=curEmp;
+  const curEmp=$("#empresaSelect").value;
+  $("#empresaSelect").innerHTML='<option value="">-- Todas as empresas --</option>';
+  empresas.forEach(e=>$("#empresaSelect").insertAdjacentHTML("beforeend", `<option value="${e}">${e}</option>`));
+  if(curEmp && empresas.includes(curEmp)) $("#empresaSelect").value = curEmp;
+  // preferir MERCATTO DELÍCIA se nada escolhido
+  if(!$("#empresaSelect").value && empresas.includes("MERCATTO DELÍCIA")) $("#empresaSelect").value="MERCATTO DELÍCIA";
 
   // status
-  const curStatus=statusSelect.value;
-  const statusUnicos=[...new Set(items.map(it=>it.Status).filter(Boolean))].sort();
-  statusSelect.innerHTML='<option value="">-- Todos os status --</option>';
-  statusUnicos.forEach(s=>statusSelect.insertAdjacentHTML('beforeend', `<option value="${s}">${s}</option>`));
-  if(curStatus && statusUnicos.includes(curStatus)) statusSelect.value=curStatus;
+  const curStatus=$("#statusSelect").value;
+  const status=[...new Set(items.map(it=>it.Status).filter(Boolean))].sort();
+  $("#statusSelect").innerHTML='<option value="">-- Todos os status --</option>';
+  status.forEach(s=>$("#statusSelect").insertAdjacentHTML("beforeend", `<option value="${s}">${s}</option>`));
+  if(curStatus && status.includes(curStatus)) $("#statusSelect").value=curStatus;
 
   // planos
-  const curPlano=planoSelect.value;
+  const curPlano=$("#planoSelect").value;
   const planos=[...new Set(items.map(it=>it.Rateio?.[0]?.PlanoDeContas).filter(Boolean))].sort();
-  planoSelect.innerHTML='<option value="">-- Todos os planos --</option>';
-  planos.forEach(p=>planoSelect.insertAdjacentHTML('beforeend', `<option value="${p}">${p}</option>`));
-  if(curPlano && planos.includes(curPlano)) planoSelect.value=curPlano;
+  $("#planoSelect").innerHTML='<option value="">-- Todos os planos --</option>';
+  planos.forEach(p=>$("#planoSelect").insertAdjacentHTML("beforeend", `<option value="${p}">${p}</option>`));
+  if(curPlano && planos.includes(curPlano)) $("#planoSelect").value=curPlano;
 
   // meios
   const selAntes=getMeiosSelecionados();
@@ -418,159 +383,152 @@ function popularFiltros(items){
   atualizarTextoMeio();
 }
 
-/* ===== KPIs ===== */
-function sumValores(arr){ 
-  return arr.reduce((acc,it)=>acc + toNumber(it.ValorBruto), 0);
-}
-function toNumber(v){
-  if(v==null||v==="") return 0;
-  let s=String(v).trim().replace(/^R\$\s*/i,"");
-  if(s.includes(",") && s.includes(".")){ s=s.replace(/\./g,"").replace(",",".") }
-  else if(s.includes(",")){ s=s.replace(",",".") }
-  const n=parseFloat(s); return isNaN(n)?0:n;
-}
-function porcentDelta(atual, anterior){
-  const a = (anterior||0);
-  if(a===0){ return atual>0 ? 100 : 0 }
-  return ((atual - a)/a)*100;
-}
-function atualizarKPIs(dadosAtuais, dadosAnterior){
-  const totalAtual = sumValores(dadosAtuais);
-  const totalAnt   = sumValores(dadosAnterior);
-  const deltaTotal = porcentDelta(totalAtual, totalAnt);
+function aplicarFiltros(items){
+  const empresa=$("#empresaSelect").value;
+  const status=$("#statusSelect").value;
+  const plano=$("#planoSelect").value;
+  const meiosSel=getMeiosSelecionados().map(simplify);
+  const tipoDatas=$("#tipoDatas").value;
+  const dIni=parseISO($("#inicio").value);
+  const dFim=parseISO($("#fim").value);
+  const q=($("#searchBox").value||"").toLowerCase();
 
-  const qtdAtual = dadosAtuais.length;
-  const qtdAnt   = dadosAnterior.length;
-  const deltaQtd = porcentDelta(qtdAtual, qtdAnt);
-
-  const ticketAtual = qtdAtual ? (totalAtual / qtdAtual) : 0;
-  const ticketAnt   = qtdAnt ? (totalAnt / qtdAnt) : 0;
-  const deltaTicket = porcentDelta(ticketAtual, ticketAnt);
-
-  // Top plano
-  const porPlano = agruparPorPlano(dadosAtuais);
-  const ordenados = Object.entries(porPlano).sort((a,b)=>b[1]-a[1]);
-  const top = ordenados[0] || [null,0];
-  const partTop = totalAtual ? (top[1]/totalAtual)*100 : 0;
-
-  kpiTotal.textContent = fmtBRL(totalAtual);
-  kpiTotalDelta.textContent = (deltaTotal>=0? "▲ ":"▼ ")+Math.abs(deltaTotal).toFixed(1)+"% vs período anterior";
-  kpiTotalDelta.className = "delta " + (deltaTotal>=0?"up":"down");
-
-  kpiQtd.textContent = qtdAtual.toLocaleString('pt-BR');
-  kpiQtdDelta.textContent = (deltaQtd>=0? "▲ ":"▼ ")+Math.abs(deltaQtd).toFixed(1)+"% vs período anterior";
-  kpiQtdDelta.className = "delta " + (deltaQtd>=0?"up":"down");
-
-  kpiTicket.textContent = fmtBRL(ticketAtual);
-  kpiTicketDelta.textContent = (deltaTicket>=0? "▲ ":"▼ ")+Math.abs(deltaTicket).toFixed(1)+"% vs período anterior";
-  kpiTicketDelta.className = "delta " + (deltaTicket>=0?"up":"down");
-
-  kpiTopPlano.textContent = top[0] ? top[0] : "—";
-  kpiTopPlanoPart.textContent = top[0] ? `${fmtBRL(top[1])} • ${partTop.toFixed(1)}% do total` : "—";
+  return items.filter(it=>{
+    const txt=((it.DadosDoTitulo?.ClienteFornecedor?.Nome||"")+" "+(it.DadosDoTitulo?.Empresa?.Nome||"")+" "+(it.DadosDoTitulo?.Observacao||"")).toLowerCase();
+    if(q && !txt.includes(q)) return false;
+    if(empresa && (it.DadosDoTitulo?.Empresa?.Nome||"")!==empresa) return false;
+    if(status && (it.Status||"")!==status) return false;
+    if(plano && (it.Rateio?.[0]?.PlanoDeContas||"")!==plano) return false;
+    if(meiosSel.length){
+      const meio=simplify(it.MeioDePagamento||"");
+      if(!meiosSel.includes(meio)) return false;
+    }
+    const ref = tipoDatas==="Emissão" ? parseISO(it.DadosDoTitulo?.Emissao) : parseISO(it.Vencimento);
+    if(dIni && ref && ref<dIni) return false;
+    if(dFim && ref && ref>dFim) return false;
+    return true;
+  });
 }
 
-/* ===== GRÁFICOS ===== */
-function agruparPorPlano(items){
-  const map = {};
-  for(const it of items){
-    const plano = it.Rateio?.[0]?.PlanoDeContas || "—";
-    map[plano] = (map[plano]||0) + toNumber(it.ValorBruto);
-  }
-  return map;
-}
-function agruparPorDia(items, refData){
-  // refData = 'Emissão' ou 'Vencimento'
-  const map = {};
-  for(const it of items){
-    const d = refData==="Emissão" ? (it.DadosDoTitulo?.Emissao||"") : (it.Vencimento||"");
-    const dia = d ? d.split("T")[0] : "";
-    if(!dia) continue;
-    map[dia] = (map[dia]||0) + toNumber(it.ValorBruto);
-  }
-  const labels = Object.keys(map).sort();
-  return {labels, valores: labels.map(l=>map[l])};
-}
-function agruparPorStatus(items){
-  const map = {};
-  for(const it of items){
-    const st = it.Status || "—";
-    map[st] = (map[st]||0) + toNumber(it.ValorBruto);
-  }
-  return map;
+/* =================== KPI & GRÁFICOS =================== */
+function soma(arr){return arr.reduce((s,it)=>s+toNumber(it.ValorBruto),0)}
+function grupoPlano(arr){const m={};arr.forEach(it=>{const k=it.Rateio?.[0]?.PlanoDeContas||"—";m[k]=(m[k]||0)+toNumber(it.ValorBruto)});return m}
+function grupoStatus(arr){const m={};arr.forEach(it=>{const k=it.Status||"—";m[k]=(m[k]||0)+toNumber(it.ValorBruto)});return m}
+function grupoCentro(arr){const m={};arr.forEach(it=>{const k=it.Rateio?.[0]?.CentroDeCusto||"—";m[k]=(m[k]||0)+toNumber(it.ValorBruto)});return m}
+function grupoDia(arr, ref){const m={};arr.forEach(it=>{const d=ref==="Emissão"?(it.DadosDoTitulo?.Emissao||""):(it.Vencimento||"");const k=d?d.split("T")[0]:"";if(k)m[k]=(m[k]||0)+toNumber(it.ValorBruto)});const labels=Object.keys(m).sort();return {labels,values:labels.map(l=>m[l])}}
+function deltaPerc(atual,anterior){const a=anterior||0;if(a===0)return atual>0?100:0;return ((atual-a)/a)*100}
+
+function atualizarKPIs(atual, anterior){
+  const totalA = soma(atual), totalB = soma(anterior);
+  const qtdA = atual.length, qtdB = anterior.length;
+  const ticketA = qtdA?totalA/qtdA:0, ticketB = qtdB?totalB/qtdB:0;
+
+  const planos = Object.entries(grupoPlano(atual)).sort((a,b)=>b[1]-a[1]);
+  const top = planos[0] || ["—",0];
+  const partTop = totalA? (top[1]/totalA*100) : 0;
+
+  const sts = grupoStatus(atual);
+  const valorAberto = Object.entries(sts).filter(([k])=>simplify(k).includes("ABERTO")).reduce((s,[,v])=>s+v,0);
+  const valorPago = Object.entries(sts).filter(([k])=>simplify(k).includes("PAGO")).reduce((s,[,v])=>s+v,0);
+  const percPago = (valorAberto+valorPago)? ((valorPago/(valorAberto+valorPago))*100) : 0;
+
+  const maior = atual.reduce((m,it)=>{const v=toNumber(it.ValorBruto);return v>m.v?{v, f:(it.DadosDoTitulo?.ClienteFornecedor?.Nome||"—")}:m},{v:0,f:"—"});
+
+  const hoje = new Date();
+  let somaDias=0, contDias=0, qtdAtraso=0, valorAtraso=0;
+  atual.forEach(it=>{
+    const v = parseISO(it.Vencimento);
+    if(v){ somaDias += diffDays(hoje, v); contDias++; if(v < hoje && !simplify(it.Status||"").includes("PAGO")) { qtdAtraso++; valorAtraso += toNumber(it.ValorBruto);} }
+  });
+  const diasMed = contDias? (somaDias/contDias) : 0;
+
+  // deltas
+  const dTotal = deltaPerc(totalA,totalB);
+  const dQtd   = deltaPerc(qtdA,qtdB);
+  const dTicket= deltaPerc(ticketA,ticketB);
+
+  // DOM
+  $("#kpiTotal").textContent = fmtBRL(totalA);
+  $("#kpiTotalDelta").textContent = (dTotal>=0?"▲ ":"▼ ")+Math.abs(dTotal).toFixed(1)+"% vs período anterior";
+  $("#kpiTotalDelta").className = "delta "+(dTotal>=0?"up":"down");
+
+  $("#kpiQtd").textContent = qtdA.toLocaleString("pt-BR");
+  $("#kpiQtdDelta").textContent = (dQtd>=0?"▲ ":"▼ ")+Math.abs(dQtd).toFixed(1)+"% vs período anterior";
+  $("#kpiQtdDelta").className = "delta "+(dQtd>=0?"up":"down");
+
+  $("#kpiTicket").textContent = fmtBRL(ticketA);
+  $("#kpiTicketDelta").textContent = (dTicket>=0?"▲ ":"▼ ")+Math.abs(dTicket).toFixed(1)+"% vs período anterior";
+  $("#kpiTicketDelta").className = "delta "+(dTicket>=0?"up":"down");
+
+  $("#kpiTopPlano").textContent = top[0];
+  $("#kpiTopPlanoPart").textContent = `${fmtBRL(top[1])} • ${partTop.toFixed(1)}% do total`;
+
+  $("#kpiPago").textContent = `${percPago.toFixed(1)}%`;
+  $("#kpiAbertoValor").textContent = `Abertos: ${fmtBRL(valorAberto)}`;
+
+  $("#kpiMaior").textContent = fmtBRL(maior.v);
+  $("#kpiMaiorForn").textContent = maior.f;
+
+  $("#kpiDias").textContent = isNaN(diasMed)? "—" : diasMed.toFixed(1);
+  $("#kpiDiasObs").textContent = diasMed>=0 ? "em média para vencer" : "em média em atraso";
+
+  $("#kpiAtrasoValor").textContent = fmtBRL(valorAtraso);
+  $("#kpiAtrasoQtd").textContent = `${qtdAtraso} título(s)`;
 }
 
-function killChart(c){ if(c){ try{ c.destroy(); }catch(e){} } }
+function kill(c){try{c?.destroy()}catch{}}
+function desenharGraficos(arr){
+  kill(charts.planos);kill(charts.evolucao);kill(charts.status);kill(charts.ccusto);
 
-function desenharGraficos(items){
-  // BAR Planos (Top 10)
-  const porPlano = agruparPorPlano(items);
-  const pares = Object.entries(porPlano).sort((a,b)=>b[1]-a[1]).slice(0,10);
-  const lbPlanos = pares.map(p=>p[0]);
-  const vlPlanos = pares.map(p=>p[1]);
-
-  const ctx1 = document.getElementById('chartPlanos');
-  killChart(charts.planos);
-  charts.planos = new Chart(ctx1, {
+  // Planos (Top 10)
+  const mapPlano = grupoPlano(arr);
+  const top = Object.entries(mapPlano).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  charts.planos = new Chart($("#chartPlanos"), {
     type:'bar',
-    data:{ labels: lbPlanos, datasets:[{ label:'Valor', data: vlPlanos }]},
+    data:{ labels: top.map(p=>p[0]), datasets:[{ label:'Valor', data: top.map(p=>p[1]) }]},
     options:{
       responsive:true,
-      onClick: (_, els)=>{
-        if(!els || !els.length) return;
-        const i = els[0].index;
-        const plano = lbPlanos[i];
-        planoSelect.value = plano;
-        renderTudo(); // refiltra tabela e atualiza kpis/graphs conforme seleção
-      },
-      scales:{ y:{ ticks:{ callback:v=>fmtBRL(v) } } },
-      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:(ctx)=> fmtBRL(ctx.parsed.y) } } }
+      onClick:(_,els)=>{ if(!els?.length) return; const i=els[0].index; $("#planoSelect").value = top[i][0]; renderTudo(); saveUI(); },
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:ctx=>fmtBRL(ctx.parsed.y)} } },
+      scales:{ y:{ ticks:{ callback:v=>fmtBRL(v) } } }
     }
   });
 
-  // LINE Evolução diária
-  const tipoDatas = document.getElementById('tipoDatas').value;
-  const evo = agruparPorDia(items, tipoDatas);
-  const ctx2 = document.getElementById('chartEvolucao');
-  killChart(charts.evolucao);
-  charts.evolucao = new Chart(ctx2, {
+  // Evolução
+  const ref = $("#tipoDatas").value;
+  const evo = grupoDia(arr, ref);
+  charts.evolucao = new Chart($("#chartEvolucao"), {
     type:'line',
-    data:{ labels: evo.labels, datasets:[{ label:'Total Diário', data: evo.valores, tension:.25, fill:false }]},
-    options:{
-      responsive:true,
-      scales:{ y:{ ticks:{ callback:v=>fmtBRL(v) } } },
-      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:(ctx)=> fmtBRL(ctx.parsed.y) } } }
-    }
+    data:{ labels:evo.labels, datasets:[{ label:"Total diário", data:evo.values, tension:.25 }]},
+    options:{ scales:{ y:{ ticks:{ callback:v=>fmtBRL(v) } } }, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:c=>fmtBRL(c.parsed.y)} } } }
   });
 
-  // DOUGHNUT Status
-  const porStatus = agruparPorStatus(items);
-  const ctx3 = document.getElementById('chartStatus');
-  killChart(charts.status);
-  charts.status = new Chart(ctx3, {
+  // Status
+  const mapStatus = grupoStatus(arr);
+  charts.status = new Chart($("#chartStatus"), {
     type:'doughnut',
-    data:{ labels:Object.keys(porStatus), datasets:[{ data:Object.values(porStatus) }]},
-    options:{
-      responsive:true,
-      plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label:(ctx)=> `${ctx.label}: ${fmtBRL(ctx.parsed)}` } } }
-    }
+    data:{ labels:Object.keys(mapStatus), datasets:[{ data:Object.values(mapStatus) }]},
+    options:{ plugins:{ legend:{ position:"bottom" }, tooltip:{ callbacks:{ label:c=>`${c.label}: ${fmtBRL(c.parsed)}` } } } }
+  });
+
+  // Centro de Custo (Top 5)
+  const mapCC = grupoCentro(arr);
+  const topCC = Object.entries(mapCC).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  charts.ccusto = new Chart($("#chartCCusto"), {
+    type:'bar',
+    data:{ labels: topCC.map(x=>x[0]), datasets:[{ data: topCC.map(x=>x[1]) }]},
+    options:{ indexAxis:'y', plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:c=>fmtBRL(c.parsed.x) } } }, scales:{ x:{ ticks:{ callback:v=>fmtBRL(v) } } } }
   });
 }
 
-/* ===== TABELA ===== */
-function renderTabela(items){
-  const tbody=document.querySelector("#parcelasTable tbody"); 
-  tbody.innerHTML="";
-  countEl.textContent=items.length;
-
-  if(!items.length){ 
-    tbody.innerHTML="<tr><td colspan=13>Nenhum título encontrado</td></tr>"; 
-    return; 
-  }
-
-  const frag=document.createDocumentFragment();
-  for(const it of items){
-    const tr=document.createElement("tr");
-    tr.innerHTML=`
+/* =================== TABELA =================== */
+function renderTabela(arr){
+  const tb = $("#parcelasTable tbody"); tb.innerHTML = "";
+  if(!arr.length){ tb.innerHTML = `<tr><td colspan="13">Nenhum título encontrado</td></tr>`; $("#count").textContent=0; return; }
+  const frag = document.createDocumentFragment();
+  for(const it of arr){
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
       <td>${it.ParcelaId||""}</td>
       <td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td>
       <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</td>
@@ -583,41 +541,162 @@ function renderTabela(items){
       <td>${it.DadosDoTitulo?.TipoDeDocumento||""}</td>
       <td>${it.Rateio?.[0]?.CentroDeCusto||""}</td>
       <td>${it.Rateio?.[0]?.PlanoDeContas||""}</td>
-      <td>${it.DadosDoTitulo?.Observacao||""}</td>`;
+      <td>${it.DadosDoTitulo?.Observacao||""}</td>
+    `;
     frag.appendChild(tr);
   }
-  tbody.appendChild(frag);
+  tb.appendChild(frag);
+  $("#count").textContent = arr.length.toLocaleString("pt-BR");
 }
 
-/* ===== RENDER "TUDO" (aplica filtros correntes) ===== */
+/* =================== RENDER TUDO (aplica filtros) =================== */
 function renderTudo(){
-  const filtrados = aplicarFiltros(apiDadosBruto);
-  apiDadosAtual = filtrados;
-  atualizarKPIs(apiDadosAtual, []); // delta fica "—" se não refizermos fetch; mantemos KPIs principais
-  desenharGraficos(apiDadosAtual);
-  renderTabela(apiDadosAtual);
+  filtrados = aplicarFiltros(brutoAtual);
+  atualizarKPIs(filtrados, dadosAnterior || []);
+  desenharGraficos(filtrados);
+  renderTabela(filtrados);
 }
 
-/* ===== LISTENERS ===== */
-document.getElementById("btnLoad").addEventListener("click",()=>carregarDados(true));
-empresaSelect.addEventListener("change",()=>renderTudo());
-statusSelect.addEventListener("change",()=>renderTudo());
-planoSelect.addEventListener("change",()=>renderTudo());
-document.getElementById("tipoDatas").addEventListener("change",()=>renderTudo());
-document.getElementById("inicio").addEventListener("change",()=>{/* mantemos seleção, mas o ideal é recarregar */});
-document.getElementById("fim").addEventListener("change",()=>{/* idem */});
-document.getElementById("searchBox").addEventListener("input",()=>renderTudo());
+/* =================== CARGA & BACKGROUND REFRESH =================== */
+async function carregarDados({mostrarOverlay=true, usarCachePrimeiro=true, forcar=false}={}){
+  $("#status").textContent = "carregando...";
+  if(mostrarOverlay) $("#loader").style.display="flex";
 
-/* ===== INICIAL ===== */
-// período padrão: hoje → +1 dia
-const hoje = new Date();
-const amanha = addDays(hoje, 1);
-document.getElementById("inicio").value = hoje.toISOString().slice(0,10);
-document.getElementById("fim").value = amanha.toISOString().slice(0,10);
-statusSelect.value = "Aberto";
+  // Base params pro fetch
+  const tipo = ($('input[name="tipo"]:checked')||{}).value || "Despesa";
+  const base = {
+    tipo,
+    inicio: $("#inicio").value,
+    fim: $("#fim").value,
+    tipoDatas: $("#tipoDatas").value
+  };
+  const emp = $("#empresaSelect").value, st = $("#statusSelect").value;
+  if(emp) base.empresa = emp;
+  if(st) base.status = st;
+  const meiosSel = getMeiosSelecionados();
+  if(meiosSel.length) base.meio = meiosSel.join(",");
 
-// Carrega e monta tudo
-carregarDados(true);
+  const key = cacheKey(base);
+  const now = new Date();
+
+  // 1) Usa cache local imediatamente, se permitido
+  if(usarCachePrimeiro && !forcar){
+    const cached = readCache(key);
+    if(cached){
+      brutoAtual = cached.data || [];
+      popularFiltros(brutoAtual);
+      // re-aplica meios da UI após reconstrução
+      atualizarTextoMeio();
+      // carrega período anterior do cache, se existir
+      const antKey = previousPeriodKey(base);
+      const cachedAnt = readCache(antKey);
+      dadosAnterior = cachedAnt?.data || [];
+      renderTudo();
+      $("#cacheInfo").textContent = "ON • "+ new Date(cached.time).toLocaleString();
+      $("#status").textContent = "cache";
+    }
+  }
+
+  // 2) Busca atual e anterior em paralelo (atualização silenciosa)
+  const baseAnterior = previousPeriod(base);
+  const [atual, anterior] = await Promise.all([
+    fetchParcelasPeriodo(base),
+    fetchParcelasPeriodo(baseAnterior)
+  ]);
+
+  // escreve cache DB
+  writeCache(key, atual);
+  writeCache(cacheKey(baseAnterior), anterior);
+
+  brutoAtual = atual;
+  dadosAnterior = anterior;
+
+  popularFiltros(brutoAtual);
+  atualizarTextoMeio();
+  renderTudo();
+
+  $("#lastUpdate").textContent = now.toLocaleString();
+  $("#cacheInfo").textContent = "ON • "+ new Date().toLocaleString();
+  $("#loader").style.display="none";
+  $("#status").textContent = "ok";
+}
+
+// calcula período anterior (mesma duração, retrocedendo 1 mês)
+function previousPeriod(base){
+  const dIni = parseISO(base.inicio), dFim = parseISO(base.fim);
+  const dur = Math.max(1, diffDays(dIni, dFim));
+  const prevIni = new Date(dIni); prevIni.setMonth(prevIni.getMonth()-1);
+  const prevFim = addDays(prevIni, dur);
+  const b = {...base, inicio: sameDayYYYYMMDD(prevIni), fim: sameDayYYYYMMDD(prevFim)};
+  return b;
+}
+function previousPeriodKey(base){ return cacheKey(previousPeriod(base)); }
+
+/* =================== EXPORT CSV =================== */
+function exportCSV(arr){
+  const headers = ["ID","Empresa","Fornecedor","Emissao","Vencimento","Valor","Status","Conta","Meio","TipoDoc","CentroCusto","PlanoContas","Observacao"];
+  const rows = arr.map(it=>[
+    it.ParcelaId||"",
+    it.DadosDoTitulo?.Empresa?.Nome||"",
+    it.DadosDoTitulo?.ClienteFornecedor?.Nome||"",
+    (it.DadosDoTitulo?.Emissao||"").split("T")[0],
+    (it.Vencimento||"").split("T")[0],
+    toNumber(it.ValorBruto).toFixed(2).replace(".",","),
+    it.Status||"",
+    it.Conta||"",
+    it.MeioDePagamento||"",
+    it.DadosDoTitulo?.TipoDeDocumento||"",
+    it.Rateio?.[0]?.CentroDeCusto||"",
+    it.Rateio?.[0]?.PlanoDeContas||"",
+    (it.DadosDoTitulo?.Observacao||"").replace(/\n/g," ").replace(/;/g,",")
+  ]);
+  const csv = [headers.join(";")].concat(rows.map(r=>r.join(";"))).join("\n");
+  const blob = new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href=url; a.download="titulos_f360.csv"; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* =================== EVENTOS =================== */
+$("#btnLoad").addEventListener("click",()=>{ saveUI(); carregarDados({mostrarOverlay:true,usarCachePrimeiro:true}); });
+$("#btnRefresh").addEventListener("click",()=>{ saveUI(); carregarDados({mostrarOverlay:false,usarCachePrimeiro:false,forcar:true}); });
+$("#btnClearCache").addEventListener("click",()=>{
+  const tipo = ($('input[name="tipo"]:checked')||{}).value || "Despesa";
+  const base = {tipo, inicio:$("#inicio").value, fim:$("#fim").value, tipoDatas:$("#tipoDatas").value};
+  const emp=$("#empresaSelect").value, st=$("#statusSelect").value; const ms=getMeiosSelecionados();
+  if(emp) base.empresa=emp; if(st) base.status=st; if(ms.length) base.meio=ms.join(",");
+  const k1 = cacheKey(base), k2 = previousPeriodKey(base);
+  const db = getCacheDB(); delete db[k1]; delete db[k2]; setCacheDB(db);
+  $("#cacheInfo").textContent = "limpo";
+});
+$("#btnCSV").addEventListener("click",()=>exportCSV(filtrados));
+
+// filtros que só re-renderizam
+$("#empresaSelect").addEventListener("change",()=>{ saveUI(); renderTudo(); });
+$("#statusSelect").addEventListener("change",()=>{ saveUI(); renderTudo(); });
+$("#planoSelect").addEventListener("change",()=>{ saveUI(); renderTudo(); });
+$("#tipoDatas").addEventListener("change",()=>{ saveUI(); renderTudo(); });
+$("#searchBox").addEventListener("input",()=>{ saveUI(); renderTudo(); });
+$$('input[name="tipo"]').forEach(r=>r.addEventListener("change",()=>{ saveUI(); carregarDados({mostrarOverlay:true,usarCachePrimeiro:true}); }));
+
+$("#inicio").addEventListener("change",()=>saveUI());
+$("#fim").addEventListener("change",()=>saveUI());
+
+/* =================== INICIAL =================== */
+// Período padrão: mês atual até hoje
+const hoje = endOfToday(); const ini = startOfMonth(hoje);
+$("#inicio").value = sameDayYYYYMMDD(ini);
+$("#fim").value    = sameDayYYYYMMDD(hoje);
+
+// primeira carga com cache imediato se houver
+carregarDados({mostrarOverlay:true,usarCachePrimeiro:true});
+
+// atualização silenciosa e periódica em segundo plano (sem travar UI)
+setInterval(()=>carregarDados({mostrarOverlay:false,usarCachePrimeiro:true}), BG_REFRESH_MS);
+
+// restaura UI após montar filtros
+setTimeout(loadUI, 600);
 </script>
 </body>
 </html>
