@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Painel • Conferência de Parcelas (F360)</title>
+  <title>Painel • Planos de Contas & Títulos (F360)</title>
   <style>
     :root{
       --bg:#f9fafb; --card:#fff; --ink:#0f1724; --muted:#6b7280;
@@ -18,14 +18,26 @@
       border-bottom:1px solid #e5e7eb;z-index:10;box-shadow:var(--shadow)}
     header img{height:32px}
     h1{margin:0;font-size:16px;font-weight:600}
-    .badge-top{margin-left:16px;background:var(--warn);color:#fff;font-size:12px;
+    .badge-top{margin-left:16px;background:var(--ok);color:#fff;font-size:12px;
       padding:4px 10px;border-radius:16px;font-weight:600}
     .meta{margin-left:auto;font-size:13px;color:var(--muted)}
     .perfil{display:flex;align-items:center;gap:8px;margin-left:16px}
     .perfil img{width:45px;height:45px;border-radius:50%}
     .perfil span{font-size:13px;color:var(--ink);font-weight:500}
+
+    .wrap{display:flex;flex-direction:column;height:100%;overflow:hidden}
+    .row{display:flex;gap:12px;padding:12px}
+    .row.stretch{flex:1;overflow:hidden}
     .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
-      padding:12px 16px;margin:12px;display:flex;flex-direction:column;flex:1;overflow:hidden}
+      padding:12px 16px;display:flex;flex-direction:column}
+    .card.kpis{flex:0 0 auto;width:100%}
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .kpi{border:1px solid #e5e7eb;border-radius:12px;padding:12px}
+    .kpi .title{font-size:12px;color:var(--muted);text-transform:uppercase}
+    .kpi .value{font-size:20px;font-weight:800;margin-top:6px}
+    .kpi .delta{font-size:12px;margin-top:6px}
+    .delta.up{color:var(--ok)} .delta.down{color:var(--danger)}
+
     .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
     input,select,button{
       padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:14px;
@@ -36,39 +48,7 @@
     button{cursor:pointer}
     .btn{background:var(--accent);color:#fff;border:none}
     .btn:hover{opacity:.9;transform:scale(1.02)}
-    .totais{margin-left:12px;font-size:13px;font-weight:600;color:var(--ink)}
-    #tableWrap{flex:1;overflow:auto}
-    table{width:100%;border-collapse:separate;border-spacing:0 4px}
-    th{background:#f3f4f6;position:sticky;top:0;z-index:5;padding:10px;font-size:12px;
-      text-align:left;text-transform:uppercase;font-weight:600;color:var(--muted)}
-    td{padding:10px;background:#fff;border-bottom:1px solid #f1f5f9;font-size:13px;
-      white-space:nowrap;border-top:1px solid #f1f5f9;transition:.2s}
-    tr.ok td{background:#ecfdf5}
-    tr.divergente td{background:#fff8eb}
-    tr:hover td{background:#f3f4f6}
-    .chkParcela:checked {accent-color: var(--ok);}
-    footer{padding:10px 16px;font-size:13px;color:var(--muted);display:flex;
-      justify-content:space-between;background:#fff;border-top:1px solid #e5e7eb}
-    #loader{position:fixed;top:0;left:0;width:100%;height:100%;
-      background:rgba(37,99,235,.6);display:none;align-items:center;
-      justify-content:center;z-index:99;flex-direction:column;color:#fff;
-      font-size:18px;font-weight:600;backdrop-filter:blur(3px)}
-    .spinner{border:4px solid rgba(255,255,255,.3);border-top:4px solid #fff;
-      border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite;margin-bottom:12px}
-    @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
-    @media(max-width:760px){
-      table{font-size:12px}
-      .controls{flex-direction:column;align-items:stretch}
-      th,td{padding:8px}
-    }
-    /* login */
-    #login{position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;
-      display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:200}
-    #login img{width:180px;margin-bottom:20px}
-    #login input{padding:10px 14px;font-size:16px;width:240px;text-align:center}
-    #login button{margin-top:12px;width:240px;padding:10px;font-size:15px}
-    #login small{margin-top:8px;color:var(--muted)}
-    /* multi select menu */
+
     .multi{position:relative}
     .multi>input{min-width:220px;cursor:pointer;background:#fff}
     .multi-menu{position:absolute;top:110%;left:0;background:#fff;border:1px solid #e5e7eb;
@@ -76,7 +56,40 @@
     .multi-menu label{display:flex;gap:8px;align-items:center;font-size:13px;padding:4px 6px;border-radius:6px}
     .multi-menu label:hover{background:#f3f4f6}
     .multi.open .multi-menu{display:block}
+
+    .grid-2{display:grid;grid-template-columns:1.2fr .8fr;gap:12px}
+    .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+    canvas{width:100%;height:280px}
+
+    #tableWrap{flex:1;overflow:auto}
+    table{width:100%;border-collapse:separate;border-spacing:0 4px}
+    th{background:#f3f4f6;position:sticky;top:0;z-index:5;padding:10px;font-size:12px;
+      text-align:left;text-transform:uppercase;font-weight:600;color:var(--muted)}
+    td{padding:10px;background:#fff;border-bottom:1px solid #f1f5f9;font-size:13px;
+      white-space:nowrap;border-top:1px solid #f1f5f9;transition:.2s}
+    tr:hover td{background:#f3f4f6}
+
+    footer{padding:10px 16px;font-size:13px;color:var(--muted);display:flex;
+      justify-content:space-between;background:#fff;border-top:1px solid #e5e7eb}
+
+    #loader{position:fixed;top:0;left:0;width:100%;height:100%;
+      background:rgba(37,99,235,.6);display:none;align-items:center;
+      justify-content:center;z-index:99;flex-direction:column;color:#fff;
+      font-size:18px;font-weight:600;backdrop-filter:blur(3px)}
+    .spinner{border:4px solid rgba(255,255,255,.3);border-top:4px solid #fff;
+      border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite;margin-bottom:12px}
+    @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+
+    @media(max-width:980px){ .kpis{grid-template-columns:1fr 1fr} .grid-2,.grid-3{grid-template-columns:1fr} canvas{height:240px}}
+    /* login */
+    #login{position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;
+      display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:200}
+    #login img{width:180px;margin-bottom:20px}
+    #login input{padding:10px 14px;font-size:16px;width:240px;text-align:center}
+    #login button{margin-top:12px;width:240px;padding:10px;font-size:15px}
+    #login small{margin-top:8px;color:var(--muted)}
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <!-- Tela login -->
@@ -84,7 +97,7 @@
     <img src="https://static.wixstatic.com/media/d830b0_8cec50a98bbf4775814dbfa5386585e8~mv2.png" alt="Logo">
     <input type="password" id="senhaInput" placeholder="Digite a senha">
     <button class="btn" id="btnLogin">Entrar</button>
-    <small>Esta sessão fica salva no navegador.</small>
+    <small>Esta sessão fica salva no navegador e é proibido compartilhar com terceiros.</small>
     <div id="loginMsg" style="color:#dc2626;margin-top:10px;font-size:13px"></div>
   </div>
 
@@ -92,68 +105,117 @@
   <header>
     <img src="https://static.wixstatic.com/media/d830b0_8cec50a98bbf4775814dbfa5386585e8~mv2.png" alt="Logo">
     <div>
-      <h1>Painel • Conferência de Parcelas (F360)</h1>
-      <div class="small">Integração F360 + Google Sheets</div>
+      <h1>Painel • Planos de Contas & Títulos (F360)</h1>
+      <div class="small">Integração F360 ativa • Análise + Consulta</div>
     </div>
-    <div class="badge-top">Divergências: <span id="divCount">0</span></div>
+    <div class="badge-top">Modo: Despesas</div>
     <div class="meta">Status: <span id="status">inicializando...</span></div>
     <div class="perfil"><img src="https://github.com/ClenaStore/Painel-parcelas-index/blob/main/paste/Captura%20de%20tela%202025-09-30%20132347.png?raw=true" alt=""><span id="perfilNome">Yane Melo</span></div>
   </header>
 
-  <!-- Loader -->
   <div id="loader"><div class="spinner"></div>Carregando...</div>
 
-  <!-- Card principal -->
-  <div class="card">
-    <div class="controls">
-      <select id="empresaSelect"><option value="">-- Todas as empresas --</option></select>
-      <input type="date" id="inicio" />
-      <input type="date" id="fim" />
-      <select id="tipoDatas"><option>Emissão</option><option selected>Vencimento</option></select>
+  <div class="wrap">
+    <!-- Filtros + KPIs -->
+    <div class="row">
+      <div class="card" style="flex:1">
+        <div class="controls">
+          <select id="empresaSelect"><option value="">-- Todas as empresas --</option></select>
+          <input type="date" id="inicio" />
+          <input type="date" id="fim" />
+          <select id="tipoDatas"><option>Emissão</option><option selected>Vencimento</option></select>
 
-      <!-- Multi select de meios -->
-      <div class="multi" id="meioMulti">
-        <input type="text" readonly placeholder="Formas de pagamento" id="meioInput" />
-        <div class="multi-menu" id="meioMenu"></div>
+          <!-- Plano de Contas (lista dinâmica) -->
+          <select id="planoSelect" title="Plano de Contas"><option value="">-- Todos os planos --</option></select>
+
+          <!-- Multi select de meios -->
+          <div class="multi" id="meioMulti">
+            <input type="text" readonly placeholder="Formas de pagamento" id="meioInput" />
+            <div class="multi-menu" id="meioMenu"></div>
+          </div>
+
+          <select id="statusSelect"><option value="">-- Todos os status --</option></select>
+          <input type="text" id="searchBox" placeholder="🔍 Buscar fornecedor/observação..." />
+          <button class="btn" id="btnLoad">Analisar</button>
+        </div>
+
+        <!-- KPIs -->
+        <div class="kpis">
+          <div class="kpi">
+            <div class="title">Total do Período</div>
+            <div class="value" id="kpiTotal">R$ 0,00</div>
+            <div class="delta" id="kpiTotalDelta">—</div>
+          </div>
+          <div class="kpi">
+            <div class="title">Qtde de Títulos</div>
+            <div class="value" id="kpiQtd">0</div>
+            <div class="delta" id="kpiQtdDelta">—</div>
+          </div>
+          <div class="kpi">
+            <div class="title">Ticket Médio</div>
+            <div class="value" id="kpiTicket">R$ 0,00</div>
+            <div class="delta" id="kpiTicketDelta">—</div>
+          </div>
+          <div class="kpi">
+            <div class="title">Plano Top 1</div>
+            <div class="value" id="kpiTopPlano">—</div>
+            <div class="delta" id="kpiTopPlanoPart">—</div>
+          </div>
+        </div>
       </div>
-
-      <select id="statusSelect"><option value="">-- Todos os status --</option></select>
-      <input type="text" id="searchBox" placeholder="🔍 Buscar fornecedor..." />
-      <button class="btn" id="btnLoad">Carregar</button>
-      <button class="btn" id="btnConferido">Confirmar conferência</button>
-      <div class="totais" id="totaisBox">Total: R$ 0,00</div>
     </div>
 
-    <div id="tableWrap">
-      <table id="parcelasTable">
-        <thead>
-          <tr>
-            <th></th>
-            <th>ID</th>
-            <th>Empresa</th>
-            <th>Fornecedor</th>
-            <th>Emissão</th>
-            <th>Vencimento</th>
-            <th>Valor</th>
-            <th>Status</th>
-            <th>Conta</th>
-            <th>Meio Pagamento</th>
-            <th>Tipo Doc</th>
-            <th>Centro de Custo</th>
-            <th>Plano de Contas</th>
-            <th>Observação</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+    <!-- Gráficos -->
+    <div class="row">
+      <div class="card" style="flex:1">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:8px">Valor por Plano de Contas (Top 10) — clique para filtrar a tabela</div>
+        <canvas id="chartPlanos"></canvas>
+      </div>
     </div>
+    <div class="row">
+      <div class="card" style="flex:1">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:8px">Evolução diária no período</div>
+        <canvas id="chartEvolucao"></canvas>
+      </div>
+      <div class="card" style="flex:1">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:8px">Distribuição por Status</div>
+        <canvas id="chartStatus"></canvas>
+      </div>
+    </div>
+
+    <!-- Tabela -->
+    <div class="row stretch">
+      <div class="card" style="flex:1;min-height:0">
+        <div id="tableWrap">
+          <table id="parcelasTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Empresa</th>
+                <th>Fornecedor</th>
+                <th>Emissão</th>
+                <th>Vencimento</th>
+                <th>Valor</th>
+                <th>Status</th>
+                <th>Conta</th>
+                <th>Meio Pagamento</th>
+                <th>Tipo Doc</th>
+                <th>Centro de Custo</th>
+                <th>Plano de Contas</th>
+                <th>Observação</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <div>Última atualização: <span id="lastUpdate">—</span></div>
+      <div>Total exibido: <span id="count">0</span></div>
+    </footer>
   </div>
-
-  <!-- Rodapé -->
-  <footer>
-    <div>Última atualização: <span id="lastUpdate">—</span></div>
-    <div>Total exibido: <span id="count">0</span></div>
-  </footer>
 
 <script>
 /* ===== LOGIN ===== */
@@ -173,319 +235,43 @@ const statusEl=document.getElementById('status');
 const lastUpdateEl=document.getElementById('lastUpdate');
 const empresaSelect=document.getElementById('empresaSelect');
 const statusSelect=document.getElementById('statusSelect');
+const planoSelect=document.getElementById('planoSelect');
 const loader=document.getElementById('loader');
 const countEl=document.getElementById('count');
-const divCountEl=document.getElementById('divCount');
-const totaisBox=document.getElementById('totaisBox');
+const kpiTotal=document.getElementById('kpiTotal');
+const kpiTotalDelta=document.getElementById('kpiTotalDelta');
+const kpiQtd=document.getElementById('kpiQtd');
+const kpiQtdDelta=document.getElementById('kpiQtdDelta');
+const kpiTicket=document.getElementById('kpiTicket');
+const kpiTicketDelta=document.getElementById('kpiTicketDelta');
+const kpiTopPlano=document.getElementById('kpiTopPlano');
+const kpiTopPlanoPart=document.getElementById('kpiTopPlanoPart');
+
 const meioMenu=document.getElementById('meioMenu');
 const meioInput=document.getElementById('meioInput');
 const meioMulti=document.getElementById('meioMulti');
 
-const ENDPOINT_SHEET="https://script.google.com/macros/s/AKfycbyfEAg3VonSDjbcAdvsSX8ym-DPYy77SfcRg4eklBbsy7HT5qH6RtVR8hT9jIQOIxek1w/exec";
+let apiDadosAtual = [];   // período atual (filtrado)
+let apiDadosBruto = [];   // período atual (sem filtros além do fetch base)
+let charts = {planos:null, evolucao:null, status:null};
 
-let planilhaCache=[], apiCache=[];
-let isFetchingPlanilha=false;
 function setStatus(t){ statusEl.textContent=t }
 function showLoader(b){ loader.style.display=b?"flex":"none" }
 
 /* ===== HELPERS ===== */
 function simplifyText(s){ return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().trim() }
-function normalizeMoney(v){
-  if(v==null||v==="") return null
-  let s=String(v).trim()
-  s=s.replace(/^R\$\s*/i,"")
-  if(s.includes(",") && s.includes(".")){ s=s.replace(/\./g,"").replace(",",".") }
-  else if(s.includes(",")){ s=s.replace(",",".") }
-  const n=parseFloat(s)
-  return isNaN(n)?null:Number(n.toFixed(2))
-}
 function parseISO(d){ return d?new Date(d):null }
-
-/* ===== PLANILHA ===== */
-async function carregarPlanilha(){
-  if(isFetchingPlanilha) return;
-  isFetchingPlanilha=true;
-  try{
-    const r=await fetch(ENDPOINT_SHEET);
-    const j=await r.json();
-    planilhaCache=j.data||[];
-    atualizarDivergenciasNaView();
-  }catch(e){ }
-  finally{ isFetchingPlanilha=false; }
-}
-function verificarDivergencia(item){
-  const plan = planilhaCache.find(p =>
-    String(p.ID||"").trim().toUpperCase() === String(item.ParcelaId||"").trim().toUpperCase() &&
-    simplifyText(p.Empresa||"") === simplifyText(item.DadosDoTitulo?.Empresa?.Nome||"")
-  );
-  if(!plan) return {tipo:"fora"};
-
-  const valorPlan=normalizeMoney(plan["Valor Bruto"] || plan.Valor);
-  const valorSys=normalizeMoney(item.ValorBruto);
-
-  const fornPlan=simplifyText(plan.Fornecedor||"");
-  const fornSys=simplifyText(item.DadosDoTitulo?.ClienteFornecedor?.Nome||"");
-
-  const emissaoPlan=(plan.Emissão||plan.Emissao||"").split("T")[0];
-  const emissaoSys=(item.DadosDoTitulo?.Emissao||"").split("T")[0];
-
-  const vencPlan=(plan.Vencimento||"").split("T")[0];
-  const vencSys=(item.Vencimento||"").split("T")[0];
-
-  const diffs=[];
-if(valorPlan != null && valorSys != null && Number(valorPlan) !== Number(valorSys)) {
-  diffs.push("Valor");
-}
-  if(fornPlan!==fornSys) diffs.push("Fornecedor");
-  if(emissaoPlan!==emissaoSys) diffs.push("Emissão");
-  if(vencPlan!==vencSys) diffs.push("Vencimento");
-
-  return diffs.length ? {tipo:"divergente",campos:diffs} : {tipo:"ok"};
+function fmtBRL(n){ return (n||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}) }
+function addDays(dt,days){ const d=new Date(dt); d.setDate(d.getDate()+days); return d }
+function diffDays(a,b){ return Math.ceil((b - a) / (1000*60*60*24)) }
+function addMonthsKeepDate(d, m){
+  const dt = new Date(d); const day = dt.getDate();
+  dt.setMonth(dt.getMonth()+m);
+  if(dt.getDate()!==day){ dt.setDate(0); } // ajusta fim do mês
+  return dt;
 }
 
-
-function atualizarDivergenciasNaView(){
-  const rows=[...document.querySelectorAll("#parcelasTable tbody tr")];
-  let divergentes=0;
-  rows.forEach(tr=>{
-    const it=JSON.parse(tr.dataset.item||"null");
-    if(!it) return;
-    const check=verificarDivergencia(it);
-    tr.classList.remove("divergente");
-    if(check.tipo==="divergente"){ tr.classList.add("divergente"); divergentes++; }
-    const id=String(it.ParcelaId);
-    if(flaggedIds.includes(id)) tr.classList.add("ok"); else tr.classList.remove("ok");
-  });
-  divCountEl.textContent=divergentes;
-}
-function atualizarDivergenciasNaTela(){
-  document.querySelectorAll("tr[data-id]").forEach(tr=>{
-    const id = tr.getAttribute("data-id");
-    const empresa = tr.getAttribute("data-empresa");
-
-    // monta um objeto "item" no mesmo formato do renderTable
-    const item = {
-      ParcelaId: id,
-      DadosDoTitulo: {
-        Empresa: { Nome: empresa },
-        ClienteFornecedor: { Nome: tr.getAttribute("data-fornecedor") },
-        Emissao: tr.getAttribute("data-emissao")
-      },
-      Vencimento: tr.getAttribute("data-vencimento"),
-      ValorBruto: tr.getAttribute("data-valor")
-    };
-
-    const res = verificarDivergencia(item);
-
-    tr.classList.remove("ok","divergente","fora");
-    tr.classList.add(res.tipo);
-  });
-}
-
-/* ===== API + RENDER ===== */
-async function carregarParcelas(mostrarOverlay=false){
-  await carregarPlanilha();
-  setStatus("carregando...");
-  if(mostrarOverlay) showLoader(true);
-
-  const paramsBase={
-    tipo:"Despesa",
-    inicio:document.getElementById('inicio').value,
-    fim:document.getElementById('fim').value,
-    tipoDatas:document.getElementById('tipoDatas').value
-  };
-  const empresa=empresaSelect.value, status=statusSelect.value;
-  if(empresa) paramsBase.empresa=empresa;
-  if(status) paramsBase.status=status;
-  const meiosSel=getMeiosSelecionados();
-  if(meiosSel.length) paramsBase.meio=meiosSel.join(",");
-
-  let pagina=1,todos=[];
-  while(true){
-    const params=new URLSearchParams({...paramsBase,pagina});
-    const r=await fetch('/api/parcelas?'+params.toString());
-    const data=await r.json();
-    if(!data.Result || !data.Result.Parcelas || !data.Result.Parcelas.length) break;
-    todos=todos.concat(data.Result.Parcelas);
-    pagina++;
-  }
-  apiCache={Result:{Parcelas:todos}};
-  renderTable(apiCache);
-  popularFiltros(apiCache);
-  setStatus("ok"); lastUpdateEl.textContent=new Date().toLocaleString();
-  if(mostrarOverlay) showLoader(false);
-}
-function aplicarFiltros(items){
-  const empresa=empresaSelect.value;
-  const status=statusSelect.value;
-  const meiosSel=getMeiosSelecionados().map(simplifyText);
-  const tipoDatas=document.getElementById('tipoDatas').value;
-  const dIni=parseISO(document.getElementById('inicio').value);
-  const dFim=parseISO(document.getElementById('fim').value);
-  const q=(document.getElementById("searchBox").value||"").toLowerCase();
-  return items.filter(it=>{
-    const txt=((it.DadosDoTitulo?.ClienteFornecedor?.Nome||"")+" "+(it.DadosDoTitulo?.Empresa?.Nome||"")+" "+(it.DadosDoTitulo?.Observacao||"")).toLowerCase();
-    if(q && !txt.includes(q)) return false;
-    if(empresa && (it.DadosDoTitulo?.Empresa?.Nome||"")!==empresa) return false;
-    if(status && (it.Status||"")!==status) return false;
-    if(meiosSel.length){
-      const meio=simplifyText(it.MeioDePagamento||"");
-      if(!meiosSel.includes(meio)) return false;
-    }
-    const ref = tipoDatas==="Emissão" ? parseISO(it.DadosDoTitulo?.Emissao) : parseISO(it.Vencimento);
-    if(dIni && ref && ref<dIni) return false;
-    if(dFim && ref && ref>dFim) return false;
-    return true;
-  });
-}
-function renderTable(apiResp){
-  const tbody=document.querySelector("#parcelasTable tbody"); tbody.innerHTML="";
-  const raw=(apiResp.Result&&apiResp.Result.Parcelas)||[];
-  const items=aplicarFiltros(raw);
-
-  countEl.textContent=items.length;
-  if(!items.length){ 
-    tbody.innerHTML="<tr><td colspan=14>Nenhuma parcela</td></tr>"; 
-    divCountEl.textContent=0; 
-    totaisBox.textContent="Total: R$ 0,00"; 
-    return; 
-  }
-
-  let total=0,porModalidade={};
-  const frag=document.createDocumentFragment();
-  let divergentes=0;
-
-for(const it of items){
-  const valor=normalizeMoney(it.ValorBruto);
-  total+=valor;
-  const meio=(it.MeioDePagamento||"Desconhecido");
-  porModalidade[meio]=(porModalidade[meio]||0)+valor;
-
-  const tr=document.createElement("tr");
-  tr.dataset.item=JSON.stringify(it);
-
-  const id = String(it.ParcelaId || ""); // <-- faltava isso
-
- const check = verificarDivergencia(it);
-
-// verifica se o ID existe na planilha
-const existeNaPlanilha = planilhaCache.some(p =>
-  String(p.ID||p.Numero||"").trim().toUpperCase() === String(it.ParcelaId||"").trim().toUpperCase() &&
-  simplifyText(p.Empresa||"") === simplifyText(it.DadosDoTitulo?.Empresa?.Nome||"")
-);
-
-tr.classList.remove("ok","divergente","fora");
-
-if (existeNaPlanilha) {
-  if (check.tipo === "ok") {
-    tr.classList.add("ok"); // ✅ verde: existe e bate com a planilha
-  } else if (check.tipo === "divergente") {
-    tr.classList.add("divergente"); // ⚠️ laranja: existe mas tem divergências
-    divergentes++;
-  }
-} else {
-  tr.classList.add("fora"); // branco: não existe na planilha
-}
-
-
-  tr.innerHTML=`
-   <td><input type="checkbox" class="chkParcela" data-id="${id}" ${planilhaCache.some(p=>String(p.ID||p.Numero||"")===id)?"checked":""}></td>
-    <td>${id}</td><td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td>
-    <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</td>
-    <td>${it.DadosDoTitulo?.Emissao||""}</td><td>${it.Vencimento||""}</td>
-    <td>${valor!=null?valor.toLocaleString("pt-BR",{style:"currency",currency:"BRL"}):""}</td>
-    <td>${it.Status||""}</td><td>${it.Conta||""}</td><td>${it.MeioDePagamento||""}</td>
-    <td>${it.DadosDoTitulo?.TipoDeDocumento||""}</td>
-    <td>${it.Rateio?.[0]?.CentroDeCusto||""}</td>
-    <td>${it.Rateio?.[0]?.PlanoDeContas||""}</td>
-    <td>${it.DadosDoTitulo?.Observacao||""}</td>`;
-
-  tr.addEventListener("dblclick",()=>tr.querySelector(".chkParcela").click());
-  frag.appendChild(tr);
-}
-
-  tbody.appendChild(frag);
-  divCountEl.textContent=divergentes;
-
-  // totais
-  let txt=`Total: ${total.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}`;
-  Object.keys(porModalidade).forEach(k=>{
-    txt+=` • ${k}: ${porModalidade[k].toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}`;
-  });
-  totaisBox.textContent=txt;
-
-  // listeners de seleção
-  document.querySelectorAll(".chkParcela").forEach(chk=>{
-    chk.addEventListener("change",async ()=>{
-      const id=String(chk.dataset.id);
-      const tr=chk.closest("tr");
-      const it=JSON.parse(tr.dataset.item||"{}");
-      const reg={
-        id:it.ParcelaId||"", empresa:it.DadosDoTitulo?.Empresa?.Nome||"",
-        fornecedor:it.DadosDoTitulo?.ClienteFornecedor?.Nome||"",
-        emissao:it.DadosDoTitulo?.Emissao||"", vencimento:it.Vencimento||"",
-        valor:it.ValorBruto||"", status:it.Status||"", conta:it.Conta||"",
-        meio:it.MeioDePagamento||"", tipoDoc:it.DadosDoTitulo?.TipoDeDocumento||"",
-        centroCusto:it.Rateio?.[0]?.CentroDeCusto||"", planoContas:it.Rateio?.[0]?.PlanoDeContas||"",
-        observacao:it.DadosDoTitulo?.Observacao||""
-      };
-
-if(chk.checked){
-  if(verificarDivergencia(it).tipo==="ok") tr.classList.add("ok");
-  await enviarParaPlanilha("conferir",[reg]);
-}else{
-  tr.classList.remove("ok");
-  await enviarParaPlanilha("excluir",[reg]);
-}
-     carregarPlanilha();
-    });
-  });
-}
-
-function popularFiltros(apiResp){
-  const items=(apiResp.Result&&apiResp.Result.Parcelas)||[];
-  const empresas=[...new Set(items.map(it=>it.DadosDoTitulo?.Empresa?.Nome).filter(Boolean))].sort();
-
-  empresaSelect.innerHTML='<option value="">-- Todas as empresas --</option>';
-  empresas.forEach(e=>{
-    const opt=document.createElement("option");
-    opt.value=e; 
-    opt.textContent=e; 
-    empresaSelect.appendChild(opt);
-  });
-
-  // 🔹 define empresa padrão
-  const empresaPadrao = "MERCATTO DELÍCIA";
-  if(empresas.includes(empresaPadrao)){
-    empresaSelect.value = empresaPadrao;
-  }
-
-  // 🔹 status
-  const curStatus = statusSelect.value || "Aberto";
-  const statusUnicos=[...new Set(items.map(it=>it.Status).filter(Boolean))].sort();
-  statusSelect.innerHTML='<option value="">-- Todos os status --</option>';
-  statusUnicos.forEach(s=>{
-    const opt=document.createElement("option"); 
-    opt.value=s; 
-    opt.textContent=s; 
-    statusSelect.appendChild(opt);
-  });
-  if(curStatus) statusSelect.value=curStatus;
-
-  // 🔹 meios de pagamento
-  const selAntes=getMeiosSelecionados();
-  const meios=[...new Set(items.map(it=>it.MeioDePagamento).filter(Boolean))].sort();
-  meioMenu.innerHTML="";
-  if(meios.length){
-    meioMenu.insertAdjacentHTML("beforeend", `<label><input type="checkbox" data-bulk="all"> <strong>Selecionar/limpar tudo</strong></label><hr style="border:none;border-top:1px solid #eee;margin:6px 0">`);
-  }
-  meios.forEach(m=>{
-    const checked = selAntes.includes(m);
-    meioMenu.insertAdjacentHTML("beforeend", `<label><input type="checkbox" value="${m}" ${checked?'checked':''}> ${m}</label>`);
-  });
-  atualizarTextoMeio();
-}
-
+/* ===== MULTI-MEIO ===== */
 function getMeiosSelecionados(){
   return [...meioMenu.querySelectorAll('input[type="checkbox"][value]')].filter(c=>c.checked).map(c=>c.value);
 }
@@ -502,112 +288,336 @@ meioMenu.addEventListener("change",e=>{
     meioMenu.querySelectorAll('input[type="checkbox"][value]').forEach(c=>c.checked=all);
   }
   atualizarTextoMeio();
-  renderTable(apiCache);
+  renderTudo(); // refaz KPIs/Gráficos/Tabela com filtro de meio
 });
 
-// outros filtros
-empresaSelect.addEventListener("change",()=>renderTable(apiCache));
-statusSelect.addEventListener("change",()=>renderTable(apiCache));
-document.getElementById("tipoDatas").addEventListener("change",()=>renderTable(apiCache));
-document.getElementById("inicio").addEventListener("change",()=>renderTable(apiCache));
-document.getElementById("fim").addEventListener("change",()=>renderTable(apiCache));
-document.getElementById("searchBox").addEventListener("input",()=>renderTable(apiCache));
-
-/* ===== PLANILHA <-> APP ===== */
-async function enviarParaPlanilha(acao,registros){
-  if(!registros || !registros.length) return;
-  const body={acao,registros};
-  try{
-    await fetch(ENDPOINT_SHEET,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(body)});
-  }catch(e){ console.error("Erro ao enviar para planilha",e); }
+/* ===== API ===== */
+async function fetchParcelasPeriodo(paramsBase){
+  let pagina=1, todos=[];
+  while(true){
+    const params=new URLSearchParams({...paramsBase,pagina});
+    const r=await fetch('/api/parcelas?'+params.toString());
+    const data=await r.json();
+    const arr = (data && data.Result && data.Result.Parcelas) ? data.Result.Parcelas : [];
+    if(!arr.length) break;
+    todos = todos.concat(arr);
+    pagina++;
+  }
+  return todos;
 }
 
-/* ===== AÇÕES ===== */
-document.getElementById("btnLoad").addEventListener("click",()=>carregarParcelas(true));
-document.getElementById("btnConferido").addEventListener("click", async ()=>{
-  const regs=[];
-  document.querySelectorAll("#parcelasTable tbody tr").forEach(tr=>{
-    const it = JSON.parse(tr.dataset.item||"{}");
-    const id = String(it.ParcelaId||"");
+async function carregarDados(mostrarOverlay=false){
+  setStatus("carregando...");
+  if(mostrarOverlay) showLoader(true);
 
-    // se já está na planilha, pula
-    const jaExiste = planilhaCache.some(p => String(p.ID||p.Numero||"") === id);
-    if(jaExiste) return;
+  const tipo = "Despesa";
+  const inicioStr = document.getElementById('inicio').value;
+  const fimStr = document.getElementById('fim').value;
+  const tipoDatas = document.getElementById('tipoDatas').value;
 
-    // marca visualmente
-    const chk = tr.querySelector(".chkParcela");
-    if(chk && !chk.checked) chk.checked = true;
+  const base = {
+    tipo, inicio:inicioStr, fim:fimStr, tipoDatas
+  };
+  const empresa=empresaSelect.value, status=statusSelect.value;
+  if(empresa) base.empresa=empresa;
+  if(status) base.status=status;
+  const meiosSel=getMeiosSelecionados();
+  if(meiosSel.length) base.meio = meiosSel.join(",");
 
-    if(!flaggedIds.includes(id)) flaggedIds.push(id);
-    tr.classList.remove("divergente");
-    tr.classList.add("ok");
+  // Período atual
+  apiDadosBruto = await fetchParcelasPeriodo(base);
 
-    regs.push({
-      id,
-      empresa:it.DadosDoTitulo?.Empresa?.Nome||"",
-      fornecedor:it.DadosDoTitulo?.ClienteFornecedor?.Nome||"",
-      emissao:it.DadosDoTitulo?.Emissao||"",
-      vencimento:it.Vencimento||"",
-      valor:it.ValorBruto||"",
-      status:it.Status||"",
-      conta:it.Conta||"",
-      meio:it.MeioDePagamento||"",
-      tipoDoc:it.DadosDoTitulo?.TipoDeDocumento||"",
-      centroCusto:it.Rateio?.[0]?.CentroDeCusto||"",
-      planoContas:it.Rateio?.[0]?.PlanoDeContas||"",
-      observacao:it.DadosDoTitulo?.Observacao||""
-    });
+  // Período anterior de mesma duração
+  const dIni = parseISO(inicioStr), dFim = parseISO(fimStr);
+  const dias = Math.max(1, diffDays(dIni, dFim));
+  // Move 1 mês para trás, preservando duração
+  const prevIni = addMonthsKeepDate(dIni, -1);
+  const prevFim = addDays(prevIni, dias);
+
+  const baseAnterior = {...base, inicio: prevIni.toISOString().slice(0,10), fim: prevFim.toISOString().slice(0,10)};
+  const dadosAnterior = await fetchParcelasPeriodo(baseAnterior);
+
+  // Atualiza filtros dinâmicos
+  popularFiltros(apiDadosBruto);
+
+  // Aplica filtros da UI para "dados atuais"
+  apiDadosAtual = aplicarFiltros(apiDadosBruto);
+
+  // KPIs e gráficos
+  atualizarKPIs(apiDadosAtual, dadosAnterior);
+  desenharGraficos(apiDadosAtual);
+
+  // Tabela
+  renderTabela(apiDadosAtual);
+
+  setStatus("ok");
+  lastUpdateEl.textContent=new Date().toLocaleString();
+  if(mostrarOverlay) showLoader(false);
+}
+
+/* ===== FILTROS DA UI ===== */
+function aplicarFiltros(items){
+  const empresa=empresaSelect.value;
+  const status=statusSelect.value;
+  const plano=planoSelect.value;
+  const meiosSel=getMeiosSelecionados().map(simplifyText);
+  const tipoDatas=document.getElementById('tipoDatas').value;
+  const dIni=parseISO(document.getElementById('inicio').value);
+  const dFim=parseISO(document.getElementById('fim').value);
+  const q=(document.getElementById("searchBox").value||"").toLowerCase();
+  return items.filter(it=>{
+    const txt=((it.DadosDoTitulo?.ClienteFornecedor?.Nome||"")+" "+(it.DadosDoTitulo?.Empresa?.Nome||"")+" "+(it.DadosDoTitulo?.Observacao||"")).toLowerCase();
+    if(q && !txt.includes(q)) return false;
+    if(empresa && (it.DadosDoTitulo?.Empresa?.Nome||"")!==empresa) return false;
+    if(status && (it.Status||"")!==status) return false;
+    if(plano && (it.Rateio?.[0]?.PlanoDeContas||"")!==plano) return false;
+    if(meiosSel.length){
+      const meio=simplifyText(it.MeioDePagamento||"");
+      if(!meiosSel.includes(meio)) return false;
+    }
+    const ref = tipoDatas==="Emissão" ? parseISO(it.DadosDoTitulo?.Emissao) : parseISO(it.Vencimento);
+    if(dIni && ref && ref<dIni) return false;
+    if(dFim && ref && ref>dFim) return false;
+    return true;
+  });
+}
+
+function popularFiltros(items){
+  // empresas
+  const empresas=[...new Set(items.map(it=>it.DadosDoTitulo?.Empresa?.Nome).filter(Boolean))].sort();
+  const curEmp=empresaSelect.value;
+  empresaSelect.innerHTML='<option value="">-- Todas as empresas --</option>';
+  empresas.forEach(e=>empresaSelect.insertAdjacentHTML('beforeend', `<option value="${e}">${e}</option>`));
+  if(curEmp && empresas.includes(curEmp)) empresaSelect.value=curEmp;
+
+  // status
+  const curStatus=statusSelect.value;
+  const statusUnicos=[...new Set(items.map(it=>it.Status).filter(Boolean))].sort();
+  statusSelect.innerHTML='<option value="">-- Todos os status --</option>';
+  statusUnicos.forEach(s=>statusSelect.insertAdjacentHTML('beforeend', `<option value="${s}">${s}</option>`));
+  if(curStatus && statusUnicos.includes(curStatus)) statusSelect.value=curStatus;
+
+  // planos
+  const curPlano=planoSelect.value;
+  const planos=[...new Set(items.map(it=>it.Rateio?.[0]?.PlanoDeContas).filter(Boolean))].sort();
+  planoSelect.innerHTML='<option value="">-- Todos os planos --</option>';
+  planos.forEach(p=>planoSelect.insertAdjacentHTML('beforeend', `<option value="${p}">${p}</option>`));
+  if(curPlano && planos.includes(curPlano)) planoSelect.value=curPlano;
+
+  // meios
+  const selAntes=getMeiosSelecionados();
+  const meios=[...new Set(items.map(it=>it.MeioDePagamento).filter(Boolean))].sort();
+  meioMenu.innerHTML="";
+  if(meios.length){
+    meioMenu.insertAdjacentHTML("beforeend", `<label><input type="checkbox" data-bulk="all"> <strong>Selecionar/limpar tudo</strong></label><hr style="border:none;border-top:1px solid #eee;margin:6px 0">`);
+  }
+  meios.forEach(m=>{
+    const checked = selAntes.includes(m);
+    meioMenu.insertAdjacentHTML("beforeend", `<label><input type="checkbox" value="${m}" ${checked?'checked':''}> ${m}</label>`);
+  });
+  atualizarTextoMeio();
+}
+
+/* ===== KPIs ===== */
+function sumValores(arr){ 
+  return arr.reduce((acc,it)=>acc + toNumber(it.ValorBruto), 0);
+}
+function toNumber(v){
+  if(v==null||v==="") return 0;
+  let s=String(v).trim().replace(/^R\$\s*/i,"");
+  if(s.includes(",") && s.includes(".")){ s=s.replace(/\./g,"").replace(",",".") }
+  else if(s.includes(",")){ s=s.replace(",",".") }
+  const n=parseFloat(s); return isNaN(n)?0:n;
+}
+function porcentDelta(atual, anterior){
+  const a = (anterior||0);
+  if(a===0){ return atual>0 ? 100 : 0 }
+  return ((atual - a)/a)*100;
+}
+function atualizarKPIs(dadosAtuais, dadosAnterior){
+  const totalAtual = sumValores(dadosAtuais);
+  const totalAnt   = sumValores(dadosAnterior);
+  const deltaTotal = porcentDelta(totalAtual, totalAnt);
+
+  const qtdAtual = dadosAtuais.length;
+  const qtdAnt   = dadosAnterior.length;
+  const deltaQtd = porcentDelta(qtdAtual, qtdAnt);
+
+  const ticketAtual = qtdAtual ? (totalAtual / qtdAtual) : 0;
+  const ticketAnt   = qtdAnt ? (totalAnt / qtdAnt) : 0;
+  const deltaTicket = porcentDelta(ticketAtual, ticketAnt);
+
+  // Top plano
+  const porPlano = agruparPorPlano(dadosAtuais);
+  const ordenados = Object.entries(porPlano).sort((a,b)=>b[1]-a[1]);
+  const top = ordenados[0] || [null,0];
+  const partTop = totalAtual ? (top[1]/totalAtual)*100 : 0;
+
+  kpiTotal.textContent = fmtBRL(totalAtual);
+  kpiTotalDelta.textContent = (deltaTotal>=0? "▲ ":"▼ ")+Math.abs(deltaTotal).toFixed(1)+"% vs período anterior";
+  kpiTotalDelta.className = "delta " + (deltaTotal>=0?"up":"down");
+
+  kpiQtd.textContent = qtdAtual.toLocaleString('pt-BR');
+  kpiQtdDelta.textContent = (deltaQtd>=0? "▲ ":"▼ ")+Math.abs(deltaQtd).toFixed(1)+"% vs período anterior";
+  kpiQtdDelta.className = "delta " + (deltaQtd>=0?"up":"down");
+
+  kpiTicket.textContent = fmtBRL(ticketAtual);
+  kpiTicketDelta.textContent = (deltaTicket>=0? "▲ ":"▼ ")+Math.abs(deltaTicket).toFixed(1)+"% vs período anterior";
+  kpiTicketDelta.className = "delta " + (deltaTicket>=0?"up":"down");
+
+  kpiTopPlano.textContent = top[0] ? top[0] : "—";
+  kpiTopPlanoPart.textContent = top[0] ? `${fmtBRL(top[1])} • ${partTop.toFixed(1)}% do total` : "—";
+}
+
+/* ===== GRÁFICOS ===== */
+function agruparPorPlano(items){
+  const map = {};
+  for(const it of items){
+    const plano = it.Rateio?.[0]?.PlanoDeContas || "—";
+    map[plano] = (map[plano]||0) + toNumber(it.ValorBruto);
+  }
+  return map;
+}
+function agruparPorDia(items, refData){
+  // refData = 'Emissão' ou 'Vencimento'
+  const map = {};
+  for(const it of items){
+    const d = refData==="Emissão" ? (it.DadosDoTitulo?.Emissao||"") : (it.Vencimento||"");
+    const dia = d ? d.split("T")[0] : "";
+    if(!dia) continue;
+    map[dia] = (map[dia]||0) + toNumber(it.ValorBruto);
+  }
+  const labels = Object.keys(map).sort();
+  return {labels, valores: labels.map(l=>map[l])};
+}
+function agruparPorStatus(items){
+  const map = {};
+  for(const it of items){
+    const st = it.Status || "—";
+    map[st] = (map[st]||0) + toNumber(it.ValorBruto);
+  }
+  return map;
+}
+
+function killChart(c){ if(c){ try{ c.destroy(); }catch(e){} } }
+
+function desenharGraficos(items){
+  // BAR Planos (Top 10)
+  const porPlano = agruparPorPlano(items);
+  const pares = Object.entries(porPlano).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const lbPlanos = pares.map(p=>p[0]);
+  const vlPlanos = pares.map(p=>p[1]);
+
+  const ctx1 = document.getElementById('chartPlanos');
+  killChart(charts.planos);
+  charts.planos = new Chart(ctx1, {
+    type:'bar',
+    data:{ labels: lbPlanos, datasets:[{ label:'Valor', data: vlPlanos }]},
+    options:{
+      responsive:true,
+      onClick: (_, els)=>{
+        if(!els || !els.length) return;
+        const i = els[0].index;
+        const plano = lbPlanos[i];
+        planoSelect.value = plano;
+        renderTudo(); // refiltra tabela e atualiza kpis/graphs conforme seleção
+      },
+      scales:{ y:{ ticks:{ callback:v=>fmtBRL(v) } } },
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:(ctx)=> fmtBRL(ctx.parsed.y) } } }
+    }
   });
 
-  if(regs.length) {
-    saveFlags(); // salva no localStorage
-    await enviarParaPlanilha("conferir", regs);
-    carregarPlanilha();
-  }
-});
-
-
-  /* ===== CARGA INICIAL OTIMIZADA ===== */
-async function cargaInicial(){
-  // empresa padrão
-  const empresaPadrao = "MERCATTO DELÍCIA";
-  empresaSelect.value = empresaPadrao;
-
-  // carrega só essa primeiro
-  await carregarParcelas(true);
-
-  // depois em background carrega as demais
-  setTimeout(async ()=>{
-    const empresas = [...empresaSelect.options].map(o=>o.value).filter(v=>v && v!==empresaPadrao);
-    for(const emp of empresas){
-      empresaSelect.value = emp;
-      await carregarParcelas(false); // sem overlay
+  // LINE Evolução diária
+  const tipoDatas = document.getElementById('tipoDatas').value;
+  const evo = agruparPorDia(items, tipoDatas);
+  const ctx2 = document.getElementById('chartEvolucao');
+  killChart(charts.evolucao);
+  charts.evolucao = new Chart(ctx2, {
+    type:'line',
+    data:{ labels: evo.labels, datasets:[{ label:'Total Diário', data: evo.valores, tension:.25, fill:false }]},
+    options:{
+      responsive:true,
+      scales:{ y:{ ticks:{ callback:v=>fmtBRL(v) } } },
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:(ctx)=> fmtBRL(ctx.parsed.y) } } }
     }
-    // volta para empresa padrão no final
-    empresaSelect.value = empresaPadrao;
-    renderTable(apiCache);
-  }, 1000);
+  });
+
+  // DOUGHNUT Status
+  const porStatus = agruparPorStatus(items);
+  const ctx3 = document.getElementById('chartStatus');
+  killChart(charts.status);
+  charts.status = new Chart(ctx3, {
+    type:'doughnut',
+    data:{ labels:Object.keys(porStatus), datasets:[{ data:Object.values(porStatus) }]},
+    options:{
+      responsive:true,
+      plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label:(ctx)=> `${ctx.label}: ${fmtBRL(ctx.parsed)}` } } }
+    }
+  });
 }
 
-/* ===== DEFINIÇÃO DAS DATAS E STATUS ===== */
-const hoje = new Date();
-const amanha = new Date();
-amanha.setDate(hoje.getDate() + 1);
+/* ===== TABELA ===== */
+function renderTabela(items){
+  const tbody=document.querySelector("#parcelasTable tbody"); 
+  tbody.innerHTML="";
+  countEl.textContent=items.length;
 
+  if(!items.length){ 
+    tbody.innerHTML="<tr><td colspan=13>Nenhum título encontrado</td></tr>"; 
+    return; 
+  }
+
+  const frag=document.createDocumentFragment();
+  for(const it of items){
+    const tr=document.createElement("tr");
+    tr.innerHTML=`
+      <td>${it.ParcelaId||""}</td>
+      <td>${it.DadosDoTitulo?.Empresa?.Nome||""}</td>
+      <td>${it.DadosDoTitulo?.ClienteFornecedor?.Nome||""}</td>
+      <td>${(it.DadosDoTitulo?.Emissao||"").split("T")[0]}</td>
+      <td>${(it.Vencimento||"").split("T")[0]}</td>
+      <td>${fmtBRL(toNumber(it.ValorBruto))}</td>
+      <td>${it.Status||""}</td>
+      <td>${it.Conta||""}</td>
+      <td>${it.MeioDePagamento||""}</td>
+      <td>${it.DadosDoTitulo?.TipoDeDocumento||""}</td>
+      <td>${it.Rateio?.[0]?.CentroDeCusto||""}</td>
+      <td>${it.Rateio?.[0]?.PlanoDeContas||""}</td>
+      <td>${it.DadosDoTitulo?.Observacao||""}</td>`;
+    frag.appendChild(tr);
+  }
+  tbody.appendChild(frag);
+}
+
+/* ===== RENDER "TUDO" (aplica filtros correntes) ===== */
+function renderTudo(){
+  const filtrados = aplicarFiltros(apiDadosBruto);
+  apiDadosAtual = filtrados;
+  atualizarKPIs(apiDadosAtual, []); // delta fica "—" se não refizermos fetch; mantemos KPIs principais
+  desenharGraficos(apiDadosAtual);
+  renderTabela(apiDadosAtual);
+}
+
+/* ===== LISTENERS ===== */
+document.getElementById("btnLoad").addEventListener("click",()=>carregarDados(true));
+empresaSelect.addEventListener("change",()=>renderTudo());
+statusSelect.addEventListener("change",()=>renderTudo());
+planoSelect.addEventListener("change",()=>renderTudo());
+document.getElementById("tipoDatas").addEventListener("change",()=>renderTudo());
+document.getElementById("inicio").addEventListener("change",()=>{/* mantemos seleção, mas o ideal é recarregar */});
+document.getElementById("fim").addEventListener("change",()=>{/* idem */});
+document.getElementById("searchBox").addEventListener("input",()=>renderTudo());
+
+/* ===== INICIAL ===== */
+// período padrão: hoje → +1 dia
+const hoje = new Date();
+const amanha = addDays(hoje, 1);
 document.getElementById("inicio").value = hoje.toISOString().slice(0,10);
 document.getElementById("fim").value = amanha.toISOString().slice(0,10);
 statusSelect.value = "Aberto";
 
-/* ===== INÍCIO ===== */
-cargaInicial();
-
-// continua verificando divergências periodicamente
-setInterval(async ()=>{
-  await carregarPlanilha();
-  atualizarDivergenciasNaView();
-}, 5000);
-
-
+// Carrega e monta tudo
+carregarDados(true);
 </script>
 </body>
 </html>
